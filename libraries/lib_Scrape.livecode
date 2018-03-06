@@ -1,0 +1,272 @@
+﻿script "lib_Scrape"
+--> MetaData
+-
+license: GPLv3
+name: lib_Scrape
+type: library
+version: 0.4
+
+
+--> Working on
+-
+function scrape_GetDiv someHtml, attributeName, attributeValue, pTidyIsTrue
+   if pTidyIsTrue then html_Tidy someHtml
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   put scrapeID_GetDivText (treeID, attributeName, attributeValue) into someContent
+   revDeleteXMLTree treeID
+   return someContent
+end scrape_GetDiv
+
+function scrapeID_GetDivContents treeID, pAttributeName, pAttributeValue
+   put scrapeID_GetDivNode (treeID, pAttributeName, pAttributeValue) into divNode
+   if divNode is empty then return empty
+   put revXMLNodeContents (treeID, divNode) into someContent
+   return someContent
+end scrapeID_GetDivContents
+
+function scrapeID_GetDivText treeID, pAttributeName, pAttributeValue
+   put scrapeID_GetDivNode (treeID, pAttributeName, pAttributeValue) into divNode
+   if divNode is empty then return empty
+   put revXMLText (treeID, divNode) into someContent
+   return someContent
+end scrapeID_GetDivText
+
+function scrapeID_GetDivNode treeID, pAttributeName, pAttributeValue
+   put revXMLRootNode (treeID) into rootNode
+   put revXMLMatchingNode (treeID, rootNode, "div", pAttributeName, pAttributeValue, -1, false) into divNode
+   return divNode
+end scrapeID_GetDivNode
+
+command scrape_HtmlHeadings someHtml, @pageTitle, @handlerNames, @handerTitleNodes
+   -- was "rig_ScrapeHeadings"
+   
+   if pTidyIsTrue then html_Tidy someHtml
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   --
+   put scrapeID_GetDivNode (treeID, "id", "content") into contentsDiv
+   put xpath_ConstructHeadingPath (1, "content") into someXPath
+   put word 1 to -1 of line 1 of revXMLDataFromXPathQuery (treeID, someXPath) into pageTitle
+   -- 
+   put xpath_ConstructHeadingPath (3, "content") into someXPath
+   put word 1 to -1 of revXMLEvaluateXPath (treeID, someXPath) into handerTitleNodes
+   put revXMLDataFromXPathQuery (treeID, someXPath) into handlerNames
+   rig_CleanHandlerNames handlerNames
+   
+   put scrapeID_ConstructHeaderPageArray (treeID) into headerPageArray
+   --
+   revDeleteXMLTree treeID
+   return headerPageArray
+end scrape_HtmlHeadings
+
+
+--> Scrape
+-
+function scrape_HeaderSection xHTML
+   -- does not work with nodes that do not close like "meta"
+   -- unless we use tidy
+   -- revXMLDeleteAllTrees
+   put scrape_ExtractHeadSection (xHTML) into headerXML
+   put revXMLCreateTree (headerXML, false, true, false) into treeID
+   
+   put revXMLNodeContents (treeID, "head/title") into metaArray ["title"]
+   put revXMLChildNames (treeID, "head", CR, "meta", true) into childNodes
+   
+   -- only meta tags
+   repeat for each line childNode in childNodes
+      put "head/" & childNode into someNode
+      put revXMLAttributes (treeID, someNode, tab, CR) into attributeArray
+      split attributeArray using CR and tab
+      --
+      put attributeArray ["name"] into metaName
+      if metaName is not empty then
+         delete variable attributeArray ["name"]
+         put attributeArray into metaArray [metaName]
+      end if
+      
+      --
+      put attributeArray ["property"] into propertyName
+      if propertyName is not empty then
+         delete variable attributeArray ["property"]
+         put attributeArray into metaArray ["property"][propertyName]
+      end if
+      
+      -- put revXMLNextSibling (treeID, childNode) into childNode
+      -- if childNode is empty then exit repeat
+   end repeat
+   
+   -- put revXMLNodeContents (treeID, "head/title") into htmlTitle
+   -- scrapeID_OpenGraph treeID, metaTitle, metaImageURL, metaDescription, pageURL
+   --
+   revDeleteXMLTree treeID
+   return metaArray
+end scrape_HeaderSection
+
+function scrape_ExtractHeadSection someHTML
+   put offset ("<head", someHTML) into startNum
+   put offset ("</head>", someHTML, startNum) into afterEndNum
+   put char startNum to (startNum + afterEndNum + 6) of someHTML into headerSection
+   return headerSection
+end scrape_ExtractHeadSection
+
+function scrape_ContentSection someHtml
+   -- this removes all html tags from the section
+   put "//*[@id='content']" into someXPath
+   put scrape_WithXPath (someHtml, someXPath, true) into contentSection
+   return contentSection
+end scrape_ContentSection
+ 
+function scrape_ContentHeadings someHTML, pHeaderLevel
+   put xpath_ConstructHeadingPath (pHeaderLevel, "content") into someXPath
+   put scrape_WithXPath (someHtml, someXPath) into contentSection
+   return contentSection
+end scrape_ContentHeadings
+
+function scrape_Headings someHTML, pHeaderLevel
+   if pHeaderLevel is empty then put 3 into pHeaderLevel
+   put xpath_ConstructHeadingPath (pHeaderLevel) into someXPath
+   -- put format ("h%d", pHeaderLevel) into someXPath
+   put scrape_WithXPath (someHtml, someXPath) into contentSection
+   return contentSection
+end scrape_Headings
+
+function scrape_EvaluateContentHeadings someHTML, pHeaderLevel
+   if pHeaderLevel is empty then put 3 into pHeaderLevel
+   put format ("//*[@id='content']/h%d", pHeaderLevel) into someXPath
+
+   put scrape_EvaluateXPath (someHtml, someXPath) into contentSection
+   return contentSection
+end scrape_EvaluateContentHeadings
+
+function scrape_EvaluateXPath someHtml, someXPath, pTidyIsTrue
+   if pTidyIsTrue then html_Tidy someHtml
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   put revXMLEvaluateXPath (treeID, someXPath) into someContent
+   revDeleteXMLTree treeID
+   return someContent
+end scrape_EvaluateXPath
+
+function scrape_WithXPath someHtml, someXPath, pTidyIsTrue
+   if pTidyIsTrue then html_Tidy someHtml
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   put revXMLDataFromXPathQuery (treeID, someXPath) into someContent
+   revDeleteXMLTree treeID
+   return someContent
+end scrape_WithXPath
+
+
+--> ScrapeID
+-
+command scrapeID_OpenGraph treeID, @metaTitle, @metaImageURL, @metaDescription, @pageURL
+   -- put revXMLNodeContents (treeID, "html/head/title") into htmlTitle
+   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:title", -1, false) into titleNode
+   put word 1 to -1 of revXMLAttribute (treeID, titleNode, "content") into metaTitle
+   
+   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:image", -1, false) into imageNode
+   put word 1 to -1 of revXMLAttribute (treeID, imageNode, "content") into metaImageURL
+   
+   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:description", -1, false) into descriptionNode
+   put word 1 to -1 of revXMLAttribute (treeID, descriptionNode, "content") into metaDescription
+   
+   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:url", -1, false) into urlNode
+   put word 1 to -1 of revXMLAttribute (treeID, urlNode, "content") into pageURL
+end scrapeID_OpenGraph
+
+function scrapeID_GetContentSectionPath treeID
+   put "//*[@id='content']" into someXPath
+   put revXMLEvaluateXPath (treeID, someXPath) into contentSectionNode
+   return line 1 of contentSectionNode
+end scrapeID_GetContentSectionPath
+
+function scrapeID_ConstructHeaderPageArray treeID
+   put scrapeID_GetContentSectionPath (treeID) into contentSectionPath
+   put revXMLNumberOfChildren (treeID, contentSectionPath, "", 1) into numberOfChildren -- for safety
+   put revXMLFirstChild (treeID, contentSectionPath, false) into nextNode
+   
+   put 1 into headerNum
+   put 0 into numKeyList
+   set the itemdelimiter to "/"
+   repeat numberOfChildren -- for safety
+      put item -1 of nextNode into someLeaf
+      put token 1 of someLeaf into headerNum
+      delete char 1 of headerNum
+      switch  
+         case (char 1 of someLeaf = "h" and headerNum is a number)  
+            put revXMLText (treeID, nextNode, true) into titleBit
+            put revXMLNodeContents (treeID, nextNode) into headerTitle
+            
+            put scrape_TidyTitle (titleBit, headerTitle) into headerTitle
+            
+            scrape_IncrementNumKeyList numKeyList, headerNum
+            put scrape_ConstructNumKeyArray (numKeyList, headerNum) into numKeyArray
+            
+            put headerTitle into headerPageArray [numKeyArray]["@attributes"]["title"]
+            put headerNum into headerPageArray [numKeyArray]["@attributes"]["level"]
+            
+            -- now put content into previous headers numKeyArray
+            if htmlArray is an array then
+               put htmlArray into headerPageArray [previousNumKeyArray]["@content"]
+               delete variable htmlArray
+            end if
+            
+            put numKeyArray into previousNumKeyArray
+            break
+         default
+            put revXMLText (treeID, nextNode, true) into htmlBit
+            fedwiki_AddToEndOfIndexArray htmlBit, htmlArray
+      end switch
+      
+      put revXMLNextSibling (treeID, nextNode, false) into nextNode
+      if nextNode is empty then
+         exit repeat
+      end if
+   end repeat
+   
+   if htmlArray is an array then
+      -- if theri is only one title - theri may be some left here to add to the top title
+      put htmlArray into headerPageArray [previousNumKeyArray]["@content"]
+      delete variable htmlArray
+   end if
+   return headerPageArray
+end scrapeID_ConstructHeaderPageArray
+
+private function scrape_TidyTitle titleBit, headerTitle
+   replace CR with empty in titleBit
+   put replacetext (titleBit, "<[^><]*>","") into headerTitle
+   return headerTitle
+end scrape_TidyTitle
+
+private command scrape_IncrementNumKeyList @numKeyList, headerNum
+   put item headerNum of numKeyList into lastCount
+   add 1 to lastCount
+   put lastCount into item headerNum of numKeyList
+   return lastCount
+end scrape_IncrementNumKeyList
+
+private function scrape_ConstructNumKeyArray numKeyList, headerNum
+   repeat with itemNum =1 to headerNum
+      if item itemNum of numKeyList is empty then
+         put 1 into item itemNum of numKeyList
+      end if
+   end repeat
+   
+   put item 1 to headerNum of numKeyList into numKeyList
+   split numKeyList by comma
+   return numKeyList
+end scrape_ConstructNumKeyArray
+
+
+--> XPath
+-
+/*
+Handlers that construct XPath queries
+*/
+
+function xpath_ConstructHeadingPath pHeaderLevel, pBelowAttributeID
+   if pHeaderLevel is empty then put 3 into pHeaderLevel
+   if pBelowAttributeID is empty then
+      put format ("h%d", pHeaderLevel) into someXPath
+   else
+      put format ("//*[@id='%s']/h%d", pBelowAttributeID, pHeaderLevel) into someXPath
+   end if
+   return someXPath
+end xpath_ConstructHeadingPath
