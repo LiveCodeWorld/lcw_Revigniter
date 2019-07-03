@@ -4,27 +4,65 @@
 license: GPLv3
 name: lib_RevigniterTools
 type: library
-version: 0.3
+version: 0.4
+
+/*
+Here we provide tools for manipulating RevIgniter scripts so that we can use them locally
+for debugging, testing and development purposes. The idea is that code on the server 
+is the same as far as possible as code help and run locally.
+
+There is a local Revigniter controller folder that is versioned in GitHub, and can be accessed using:
+
+- function rig_FetchLocalControllerFolder()
+- command rig_StoreLocalControllerFolder
+
+Thre is no equivalent for RevIgniter stack libraries, as they are stored locally in whatever project makes sence,
+rather than a single flat folder as the server does. Having an aditional copy of this folder locally would cause 
+problems regarding duplication of files. Instead we access local stack libraries using the stack name.
+*/
+
+
+--> Working on
+-
+function rig_ExtractDependencies buttonScript
+   return empty
+end rig_ExtractDependencies
+
+function rig_ConstructGetProp stackNames
+   -- just in case
+   put word 1 to -1 of stackNames into stackNames
+   replace CR with comma in stackNames
+   --
+   put "getprop dep_StackNames" into getProphandler
+   put CR & "    return" && kwote (stackNames) after getProphandler
+   put CR & "end dep_StackNames" after getProphandler
+   --
+   return getProphandler
+end rig_ConstructGetProp
 
 
 --> Rig | rigScript
 -
 getprop rig_ControllerHandlers   
    put the script of the target into someScript
-   put the revAvailableHandlers of the target into handlerTable -- revAvailableHandlers only return first handler
+   put the revAvailableHandlers of the target into handlerTable
+   sort numeric handlerTable by word 3 of each
    put rig_ExtractControllerHandlers (handlerTable, someScript) into controllerHandlers
    return controllerHandlers
 end rig_ControllerHandlers
 
-getprop rig_ControllerHandlerArray
-   put the script of the target into someScript
-   put the revAvailableHandlers of the target into handlerTable -- revAvailableHandlers only return first handler
-   
-   put rig_ExtractControllerHandlers (hTable, someScript) into controllerHandlers
-   put rig_FilterControllerScript (someScript, hTable) into controllerScript
-   
-   return controllerHandlers
-end rig_ControllerHandlerArray
+getprop rig_ControllerHkeys
+   put the long id of the target into hObject
+   put revRuggedID (hObject) into hObject
+   --
+   put the rig_ControllerHandlers of the target into hNames
+   repeat for each item hName in hNames
+      put hKeyLine_FromTripple (hName, "M", hObject) into hKeyLine
+      put hKeyLine & CR after hkeys
+   end repeat
+   delete char -1 of hkeys
+   return hkeys
+end rig_ControllerHkeys
 
 getprop rig_Script [pShortControllerFile]
    /*
@@ -55,19 +93,41 @@ getprop rig_Script [pShortControllerFile]
 end rig_Script
 
 
---> Display
+--> Rig | Folders | Local | Controllers
 -
-command display_ControllerHandlers controllerScript, pControllerShortFile, serverTLD
-   -- script is missing ?
-   breakpoint
-end display_ControllerHandlers
+function rig_FetchLocalControllerFolder
+   put pref_FetchValue ("rigControllerFolder") into rigControllerFolder
+   return rigControllerFolder
+end rig_FetchLocalControllerFolder
+
+command rig_StoreControllerFolder rigControllerFolder
+   pref_SaveValue "rigControllerFolder", rigControllerFolder
+   put the result into  dataArray
+   return dataArray
+end rig_StoreControllerFolder
+
+command rig_SetLocalControllerFolder @controllerFolder
+   -- utility
+   if controllerFolder is empty then
+      put rig_FetchLocalControllerFolder() into controllerFolder
+      if there is not a folder controllerFolder then
+         put controllerFolder
+         put empty into controllerFolder
+         answer warning "Cannot locate controller folder. Please set one!"
+         exit to top
+      end if
+   end if
+end rig_SetLocalControllerFolder
 
 
 --> Rig | Create
 -
 command rig_DownloadScriptAndCreateStack shortController, pControllerFolder
    -- assumes the controller is in "/var/www/html/system/application/rest.livecode.world/controllers/"
-   -- put server_GetURL() into pServerURL
+   if shortController is empty then
+      return empty
+   end if
+   
    put "rest.livecode.world" into pServerURL
    rig_SetLocalControllerFolder pControllerFolder
    
@@ -106,85 +166,13 @@ command rig_CreateLocalControllerStack controllerScript, shortController, pContr
    end if
    --
    if exists (stack "behavior_RigLocalOveride") then
-      set the behavior of stack scriptStackFile to the long id of stack "behavior_RigLocalOveride"
+      put the name of stack scriptStackFile into sObject
+      rig_SetOveride someBoolean, sObject
    else
       breakpoint
    end if
    return scriptStackFile
 end rig_CreateLocalControllerStack
-
-command rig_CreateNewController pControllerShortFile, pControllerFolder
-   breakpoint
-   
-   if pControllerShortFile is empty then
-      put lcw_Ask ("Choose a short file for your new controller.", "short.lc") into pControllerShortFile
-   end if
-   
-   put rig_ListControllerFiles() into existingControllers
-   if pControllerShortFile is among the lines of existingControllers then
-      answer warning "Controller already exists!"
-      display_RigController pControllerShortFile
-      return false
-   end if
-   
-   local controllerScript, controllerHandlers, scriptDescription, dependencyLibs
-   
-   -- put script_ConstructCommand ("index", "--", false) into controllerScript
-   put scaffold_GetTemplate ("Rig Controller Handlers") into controllerScriptTemplate
-   put server_GetURL() into serverTLD
-   
-   -- display
-   display_ControllerHandlers controllerScriptTemplate, pControllerShortFile, serverTLD
-   put the result into displayView
-   
-   put rig_ConstructControllerFromScript (controllerScriptTemplate, pControllerShortFile, controllerHandlers, scriptDescription, dependencyLibs) into rigScript
-   -- script_CreateAndEditHashCard controllerScript, "Temp Revigniter Controllers"
-   
-   put rig_CreateContainerScript (rigScript, pControllerShortFile) into controllerScript
-   rig_CreateLocalControllerStack controllerScript, pControllerShortFile, pControllerFolder
-   put the result into scriptStackFile
-   --
-   rig_StoreController pControllerShortFile, rigScript
-   return displayView
-end rig_CreateNewController
-
-
---> Rig | Controller | Folder
--
-command rig_SetLocalControllerFolder @controllerFolder
-   if controllerFolder is empty then
-      put rig_FetchLocalControllerFolder() into controllerFolder
-      if there is not a folder controllerFolder then
-         put controllerFolder
-         put empty into controllerFolder
-         answer warning "Cannot locate controller folder. Please set one!"
-         exit to top
-      end if
-   end if
-end rig_SetLocalControllerFolder
-
-function rig_FetchLocalControllerFolder
-   put pref_FetchValue ("rigControllerFolder") into rigControllerFolder
-   return rigControllerFolder
-end rig_FetchLocalControllerFolder
-
-command rig_StoreControllerFolder rigControllerFolder
-   pref_SaveValue "rigControllerFolder", rigControllerFolder
-   put the result into  dataArray
-   return dataArray
-end rig_StoreControllerFolder
-
-function rig_FetchStackFolder
-   -- should mege with rig_LocalControllerFolder()
-   put pref_FetchValue ("rigStackFolder") into rigStackFolder
-   return rigStackFolder
-end rig_FetchStackFolder
-
-command rig_StoreStackFolder rigStackFolder
-   pref_SaveValue "rigStackFolder", rigStackFolder
-   put the result into  dataArray
-   return dataArray
-end rig_StoreStackFolder
 
 
 --> Rig | Controller | Script
@@ -292,32 +280,9 @@ function rig_FilterControllerScript someScript, hTable
    return controllerScript
 end rig_FilterControllerScript
 
-function rig_ExtractDependencies buttonScript
-   return empty
-end rig_ExtractDependencies
-
 
 --> Revigniter | Controllers | Create
 -
-function rig_ConstructInitScriptLines stackObjects
-   replace CR with comma in stackObjects
-   repeat for each item stackObject in stackObjects
-      -- get the short file of the library stack
-      set the itemdelimiter to slash
-      get the filename of stackObject
-      put item -1 of it into shortLibraryFile
-      set the itemdelimiter to comma
-      
-      -- start using stack (gAPPPATH & "stacks/lib_Audioboom.livecode")
-      put "stacks/" & shortLibraryFile into relPath
-      put "start using stack (gAPPPATH &" && kwote (relPath) & ")" into scriptLine
-      
-      put CR & scriptLine after scriptLines
-   end repeat
-   delete char 1 of scriptLines
-   return scriptLines
-end rig_ConstructInitScriptLines
-
 function rig_ConstructDepScriptLines shortLibPaths
    replace CR with comma in shortLibPaths
    repeat for each item shortLibPath in shortLibPaths
@@ -349,7 +314,7 @@ private command _StripHeaderFromRigScript @rigScript
       delete line 1 of rigScript
    end repeat
 end _StripHeaderFromRigScript
-   
+
 private command _StripInitCommand @rigScript, pControllerShortFile
    if pControllerShortFile is empty then return empty
    
@@ -375,6 +340,7 @@ private command _StripInitCommand @rigScript, pControllerShortFile
       -- bit of a hack
       set the itemdelimiter to "."
       put item 1 of shortControllerFile into stackName
+      put stackName & CR after stackNames
       if there is a stack stackName then
          put the filename of stack stackName into stackPath
          set the itemdelimiter to slash
@@ -392,10 +358,7 @@ private command _StripInitCommand @rigScript, pControllerShortFile
    end repeat
    delete char -1 of shortControllerFiles
    
-   put "getprop dep_StackNames" into getProphandler
-   put CR & "    return" && kwote (shortControllerFiles) after getProphandler
-   put CR & "end dep_StackNames" after getProphandler
-   --
+   put rig_ConstructGetProp (stackNames) into getProphandler
    return getProphandler
 end _StripInitCommand
 

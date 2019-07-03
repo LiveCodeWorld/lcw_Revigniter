@@ -9,6 +9,80 @@ version: 0.4
 
 --> Working on
 -
+function scrape_FetchTwitterMeta contentKey, someURL
+   put html_FetchTidy (someURL) into someHTML
+   put revXMLCreateTree (someHTML, false, true, false) into treeID
+   put scrape_TwitterContent (contentKey, treeID) into twitterNodeContent
+   return twitterNodeContent
+end scrape_FetchTwitterMeta
+
+function scrape_TwitterContent contentKey, treeID
+   put "twitter:" & contentKey into twitterKey
+   put revXMLMatchingNode (treeID, "html/head", "meta", "name", twitterKey, -1, false) into twitterNode
+   put word 1 to -1 of revXMLAttribute (treeID, twitterNode, "content") into twitterNodeContent
+   return twitterNodeContent
+end scrape_TwitterContent
+
+function scrape_TwitterValue treeID
+   put "twitter:player" into twitterKey
+   put revXMLMatchingNode (treeID, "html/head", "meta", "name", twitterKey, -1, false) into twitterNode
+   put word 1 to -1 of revXMLAttribute (treeID, twitterNode, "value") into twitterNodeContent
+   return twitterNodeContent
+end scrape_TwitterValue
+
+function scrape_ConstructFedwikiPageArray droppedURL, pAddFaviconLink, pAddCitation, pAddMarkDownLinks
+   -- uses "lib_Scrape"
+   local pageArray
+   --
+   put html_FetchTidy (droppedURL) into someHTML
+   put scrape_HeaderSection (someHTML) into metaArray
+   fedwiki_ParseMetaArray metaArray, htmlTitle, pageDescription, imageURL, articleTitle
+   put the result into shortDescription
+   --
+   if articleTitle is empty then
+      put line 1 of htmlTitle into pageTitle
+   else
+      put the number of chars of articleTitle < the number of chars of htmlTitle into articleIsShorter
+      if articleIsShorter is true then
+         put articleTitle into pageTitle
+      else
+         put line 1 of htmlTitle into pageTitle
+      end if
+   end if
+   --
+   if pageDescription is empty then return empty
+   
+   -- create page and image array
+   put fedwiki_CreatePageAndImageArray (pageTitle, pageDescription, droppedURL, imageURL, shortDescription) into pageArray
+   if pAddFaviconLink is true then
+      put html_ConstructFaviconLink (someHtml, droppedURL) into htmlLine
+      if htmlLine is not empty then
+         pageArray_AddHtml pageArray, htmlLine
+      end if
+   end if
+   
+   -- add citiation
+   if pAddCitation is true then
+      put doi_FetchCitation (droppedURL) into someCitation
+      if someCitation is not empty then
+         pageArray_AddMarkdown pageArray, "# Citations"
+         html_AddTag someCitation, "blockquote"
+         pageArray_AddHtml pageArray, someCitation
+      end if
+   end if
+   
+   -- add # Links section
+   if pAddMarkDownLinks is true then
+      put line 1 of articleTitle into plainLink
+      fedwiki_AddExternalLink plainLink, droppedURL
+      put "-" && plainLink into markDownLine
+      put "# Links" & CR & CR & markDownLine into someMarkdown
+      pageArray_AddMarkdown pageArray, someMarkdown
+   end if
+   --
+   return pageArray
+end scrape_ConstructFedwikiPageArray
+
 function scrape_GetDiv someHtml, attributeName, attributeValue, pTidyIsTrue
    if pTidyIsTrue then html_Tidy someHtml
    put revXMLCreateTree (someHTML, false, true, false) into treeID
@@ -114,7 +188,7 @@ function scrape_ContentSection someHtml
    put scrape_WithXPath (someHtml, someXPath, true) into contentSection
    return contentSection
 end scrape_ContentSection
- 
+
 function scrape_ContentHeadings someHTML, pHeaderLevel
    put xpath_ConstructHeadingPath (pHeaderLevel, "content") into someXPath
    put scrape_WithXPath (someHtml, someXPath) into contentSection
@@ -132,7 +206,7 @@ end scrape_Headings
 function scrape_EvaluateContentHeadings someHTML, pHeaderLevel
    if pHeaderLevel is empty then put 3 into pHeaderLevel
    put format ("//*[@id='content']/h%d", pHeaderLevel) into someXPath
-
+   
    put scrape_EvaluateXPath (someHtml, someXPath) into contentSection
    return contentSection
 end scrape_EvaluateContentHeadings
@@ -212,7 +286,7 @@ function scrapeID_ConstructHeaderPageArray treeID
             break
          default
             put revXMLText (treeID, nextNode, true) into htmlBit
-            fedwiki_AddToEndOfIndexArray htmlBit, htmlArray
+            array_AddToEndOfIndex htmlBit, htmlArray
       end switch
       
       put revXMLNextSibling (treeID, nextNode, false) into nextNode

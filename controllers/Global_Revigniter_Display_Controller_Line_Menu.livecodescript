@@ -14,18 +14,10 @@ This menu is for the array based display of revIgniter controllers.
 
 --> Global | Revigniter | Display | Controller | Line | Menu
 -
-on menu_DownloadController arrayView
-   put item 1 of the selected_Path of arrayView into shortControllerFile
+on menu_DownloadController displayView
+   put _ControllerFile (displayView) into shortFile
    --
-   rig_DownloadScriptAndCreateStack shortControllerFile
-   put the result into scriptStackFile
-   --
-   -- put the title_Text of arrayView into serverTLD
-   -- set the server_TLD of scriptStackFile to serverTLD
-   --
-   edit the script of stack scriptStackFile
-   --
-   ide_SetScriptEditorTitles "Revigniter"
+   rig_EditController shortFile
 end menu_DownloadController
 
 on _
@@ -36,9 +28,10 @@ on menu_LaunchGist arrayView
    gist_Launch shortGistFile
 end menu_LaunchGist
 
-on menu_SaveControllerAsGist arrayView
-   put item 1 of the selected_Path of arrayView into shortControllerFile
-   put the title_Text of arrayView into serverTLD
+on menu_SaveControllerAsGist displayView
+   put _ControllerFile (displayView) into shortControllerFile
+   --
+   put the title_Text of displayView into serverTLD
    put merge ("This the is Revigniter controller '[[shortControllerFile]]' from the domain '[[serverTLD]]'.") into mergeHelp
    
    put rig_FetchController (shortControllerFile) into rigScript
@@ -51,16 +44,16 @@ end menu_SaveControllerAsGist
 on _
 end _
 
-on menu_DeleteController arrayView
-   put item 1 of the selected_Path of arrayView into shortControllerFile
+on menu_DeleteController displayView
+   put _ControllerFile (displayView) into shortControllerFile
+   put the title_Text of displayView into serverTLD
+   --
    put merge ("Are you sure you want to delete the server file [[shortControllerFile]]?") into someComment
    lcw_Answer someComment
    --
-   put the title_Text of arrayView into serverTLD
    rig_DeleteController shortControllerFile, serverTLD
    --
-   put rig_FetchControllerPathArray() into controllerPathArray
-   set the displayed_Data of arrayView to controllerPathArray
+   _Refresh displayView
 end menu_DeleteController
 
 on _
@@ -79,38 +72,39 @@ end submenu_Dev
 
 --> Dev | Menu
 -
+on menu_Refresh displayView
+   _Refresh displayView
+end menu_Refresh
+
 on menu_ChangeMenu
    ide_SetMenuTitle "Recent", "Default"
 end menu_ChangeMenu
 
-on menu_EditViewBehavior arrayView
-   put the behavior of arrayView into bObject
-   edit the script of bObject
-end menu_EditViewBehavior
 
-on _
-end _
+--> Deps
+-
+private command _Refresh displayView
+   put the view_Name of displayView into viewName
+   switch viewName
+      case "View|Tree|Widget with Title"
+         put rig_FetchControllerPathArray() into controllerPathArray
+         set the displayed_Data of displayView to controllerPathArray
+         break
+      default
+         display_RigControllers displayView
+   end switch
+end _Refresh
 
-on menu_CreateControllerCard arrayView
-   -- this is the old way of creating one card per controller in a temporary stack
-   -- new way is to create an independent stack per controller
-   breakpoint
-   
-   put item 1 of the selected_Path of arrayView into shortControllerFile
-   put the title_Text of arrayView into serverTLD
-   
-   put rig_FetchController (shortControllerFile) into rigScript
-   put rig_CreateContainerScript (rigScript, shortControllerFile) into someScript
-   
-   -- script_CreateAndEditHashCard someScript, "Temp Revigniter Controllers"
-   -- put the result into cardObject
-   script_CreateTempCard shortControllerFile, someScript, "Temp Revigniter Controllers"
-   put the result into cardObject
-   edit the script of cardObject
-   
-   set the short_ControllerFile of cardObject to shortControllerFile
-   set the server_TLD of cardObject to serverTLD
-   
-   ide_SetScriptEditorTitles "Revigniter"
-end menu_CreateControllerCard
+private function _ControllerFile displayView
+   put the view_Name of displayView into viewName
+   switch viewName
+      case "View|Tree|Widget with Title"
+         put item 1 of the selected_Path of displayView into shortControllerFile
+         break
+      default -- "View|Index|Simple"
+         put the selected_Line of displayView into shortControllerFile
+   end switch
+   return shortControllerFile
+end _ControllerFile
+
 

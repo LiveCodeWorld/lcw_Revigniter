@@ -59,7 +59,7 @@ on menu_SaveNavigationSettings mTarget
 end menu_SaveNavigationSettings
 
 on menu_DisplayProcessedHkeyArray scriptObject
-   put the textStack_HkeyArray of scriptObject into processedHkeyArray  
+   put the projectOverlay_Array ["processedHkey.array"] of scriptObject into processedHkeyArray  
    display_Array processedHkeyArray, "processedHkeyArray"
 end menu_DisplayProcessedHkeyArray
 

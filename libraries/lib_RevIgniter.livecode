@@ -4,47 +4,361 @@
 copyright: David Bovill
 license: GPLv3
 name: lib_RevIgniter
-type: script library
-version: 0.5
+type: library
+version: 0.6
 
 
 /*
-This library contains all the revIgniter code for Livecode.
+This library contains code for interfacing with revIgniter code and libraries.
 
-Moved out exif handlers. Out of sync with library stack on rest.livecode.world
+It is desinged to be used for manipulation of remote server scripts in standard RevIgniter folders.
+The code to access local copies of files should be in "lib_RevigniterTools"
 */
+
+
+--> Working on
+-
+command rig_EditController shortFile   
+   rig_DownloadScriptAndCreateStack shortFile
+   put the result into scriptStackFile
+   edit the script of stack scriptStackFile
+   ide_SetScriptEditorTitles "Revigniter"
+   return scriptStackFile
+end rig_EditController
+
+function rig_GetServerApplicationFolder pServerURL
+   put server_GetProperty ("rigApplicationFolder", pServerURL) into rigApplicationFolder
+   text_AddTrailing Rig_ApplicationFolder, "/" -- should be on storing and not reading
+   return rigApplicationFolder
+end rig_GetServerApplicationFolder
+
+command rig_SetOveride someBoolean, scriptObject
+   if someBoolean is true then
+      insert the script of stack "behavior_RigLocalOveride" into front
+   else
+      remove the script of stack "behavior_RigLocalOveride" from front
+   end if
+   
+   -- temporary hack for old scripts
+   if exists (scriptObject) then
+      set the behavior of scriptObject to empty
+   end if
+end rig_SetOveride
+
+
+--> LCW | Shell
+-
+command lcw_DoRemoteShell remoteShell
+   -- ssh fortyfoxes@rest.livecode.world
+   ssh_DoRemoteShell "fortyfoxes", "rest.livecode.world", remoteShell
+   put the result into shellResult
+   return shellResult
+end lcw_DoRemoteShell
+
+function lcw_FetchKnownHosts
+   put "/home/fortyfoxes/.ssh/known_hosts" into somePath
+   put ssh_FetchFile ("fortyfoxes", "rest.livecode.world", somePath) into knownHosts
+   return knownHosts
+end lcw_FetchKnownHosts
+
+function lcw_FetchFile somePath
+   put ssh_FetchFile ("fortyfoxes", "rest.livecode.world", somePath) into someData
+   return someData
+end lcw_FetchFile
+
+function lcw_FetchWikiFolderList pListAll
+   put "/home/fortyfoxes/.ssh" into folderPath
+end lcw_FetchWikiFolderList
+
+function lcw_FetchFolderList folderPath, pListAll
+   put "ls" into someCommand
+   if pListAll is true then put space & "-la" after someCommand
+   put someCommand && folderPath into remoteShell
+   --
+   lcw_DoRemoteShell remoteShell
+   return the result
+end lcw_FetchFolderList
+
+
+--> Rig | SSH | Model
+-
+/*
+Upload and list things on a revIgniter server using ssh
+These need refactoring to see how they relate to server_ and atopia_ libs
+*/
+
+function rig_FetchPathArray someFolder
+   put server_GetURL() into serverURL
+   put server_GetSshUser() into sshUser
+   put server_GetSshKeyPath() into sshKeyPath
+   put server_FetchFileArray (serverURL, sshUser, someFolder, sshKeyPath) into fileAndFolderArray
+   
+   -- this does not take into account any nested controller folders
+   put fileAndFolderArray ["file"] into filePathArray
+   return filePathArray
+end rig_FetchPathArray
+
+function rig_FetchFile somePath, pServerURL
+   -- conservative and careful
+   local oServerURL
+   
+   -- let's see if a different serverURL is currently loaded
+   put server_GetURL() into oServerURL
+   put pServerURL is not oServerURL AND pServerURL is not empty into needsLoading
+   if needsLoading then
+      -- load new one
+      server_SetURL pServerURL
+   end if
+   
+   -- we know the right server details have been loaded
+   put server_GetURL() into serverAddress
+   put server_GetSshUser() into sshUser
+   
+   -- safely fetch the file
+   put server_FetchFile (somePath, serverAddress, sshUser) into stackOrScript
+   
+   -- restore if needsLoading
+   if needsLoading then
+      server_SetURL oServerURL
+   end if
+   return stackOrScript
+end rig_FetchFile
+
+command rig_StoreStackData shortFile, stackData
+   put rig_ApplicationPath ("stacks/" & shortFile) into somePath
+   put rig_GetFolder ("stacks") & shortFile into somePath
+   rig_StoreData stackData, somePath
+   return the result
+end rig_StoreStackData
+
+command rig_UploadLocalFile localFile, pathToStore
+   put server_GetURL() into serverAddress
+   put server_GetSshUser() into sshUser
+   server_StoreFile localFile, pathToStore, serverAddress, sshUser
+   put the result into shellResult
+   return shellResult
+end rig_UploadLocalFile
+
+command rig_StoreData someData, somePath
+   put server_GetURL() into serverAddress
+   put server_GetSshUser() into sshUser
+   server_StoreData someData, somePath, serverAddress, sshUser
+   put the result into someResult
+   return someResult
+end rig_StoreData
 
 
 --> Rig | List
 -
+function rig_ListControllerFiles
+   put rig_GetFolder ("controllers") into someFolder
+   put rig_ListFiles (someFolder) into shortFiles
+   return shortFiles
+end rig_ListControllerFiles
+
+function rig_ListHelperFiles
+   put rig_GetFolder ("helpers") into someFolder
+   put rig_ListFiles (someFolder) into shortFiles
+   return shortFiles
+end rig_ListHelperFiles
+
+function rig_ListStackFiles
+   put rig_GetFolder ("stacks") into someFolder
+   put rig_ListFiles (someFolder) into shortFiles
+   return shortFiles
+end rig_ListStackFiles
+
+function rig_ListSystemHelperFiles
+   put rig_GetSystemFolder ("helpers") into someFolder
+   put rig_ListFiles (someFolder) into shortFiles
+   return shortFiles
+end rig_ListSystemHelperFiles
+
 function rig_ListFiles someFolder
-   if the environment = "server" then
-      put rig_ListServerFiles (someFolder) into shortFiles
-   else
-      put rig_FetchPathArray (someFolder) into fileArray
-      put rig_SortAndFilterCodeFiles (fileArray) into shortFiles
-   end if
+   put rig_FetchPathArray (someFolder) into fileArray
+   delete variable fileArray ["index.html"]
+   delete variable fileArray ["welcome.lc"]
+   put keys (fileArray) into shortFiles
+   sort shortFiles
    return shortFiles
 end rig_ListFiles
 
-function rig_ListServerFiles someFolder
-   put rig_FetchPathArray (someFolder) into shortFiles
-   set the columndelimiter to CR
-   combine shortFiles by column
-   sort shortFiles
-   return shortFiles
-end rig_ListServerFiles
 
-private function rig_SortAndFilterCodeFiles fileArray
-   put keys (fileArray) into shortFiles
-   line_Delete "index.html", shortFiles
-   line_Delete "welcome.lc", shortFiles
-   sort shortFiles
-   return shortFiles
-end rig_SortAndFilterCodeFiles
+--> Rig | Path | Array
+-
+function rig_FetchStackPathArray
+   put rig_StackFolder() into stackFolder
+   put rig_FetchPathArray (stackFolder) into fileArray
+   return fileArray
+end rig_FetchStackPathArray
+
+function rig_FetchControllerPathArray
+   put rig_ControllerFolder () into controllerFolder
+   put rig_FetchPathArray (controllerFolder) into fileArray
+   return fileArray
+end rig_FetchControllerPathArray
 
 
---> Working on
+--> Rig | Check
+-
+command rig_CheckFiles shortFiles, pIndexView
+   repeat for each line shortFile in shortFiles
+      set the cursor to busy
+      display_Spin shortFile, pIndexView
+      put the result into selectedLineNum
+      --
+      rig_CheckFile shortFile, pIndexView
+      put the result into changedHow -- could add up
+   end repeat
+   set the hilited_lines of pIndexView to empty
+end rig_CheckFiles
+
+command rig_CheckFile shortFile, pIndexView
+   put rig_FetchStack (shortFile) into remoteStackData
+   put stack_ExtractScriptOnlyName (remoteStackData) into stackName
+   if exists (stack stackName) then
+      put the stack_Data of stack stackName into localStackData
+      if word 1 to -1 of localStackData = word 1 to -1 of remoteStackData then
+         -- for some reason local stacks have an additional space at the end
+         if exists (pIndexView) then
+            put the line_Number [shortFile] of pIndexView into lineNum
+            set the line_Colour [lineNum] of pIndexView to "dark green"
+         end if
+         return "good" && lineNum
+      else
+         if exists (pIndexView) then
+            put the line_Number [shortFile] of pIndexView into lineNum
+            set the line_Colour [lineNum] of pIndexView to blue
+         end if
+         return "changed" && lineNum
+      end if
+   else
+      if exists (pIndexView) then
+         put the line_Number [shortFile] of pIndexView into lineNum
+         set the line_Colour [lineNum] of pIndexView to red
+      end if
+      return "missing" && lineNum
+   end if
+end rig_CheckFile
+
+
+--> Rig | Model
+-
+/*
+Used by a revIgniter server to access local files
+*/
+
+function rig_GetJson jsonAssetPath
+   put rigReadFile (jsonAssetPath) into resultJSON
+   return resultJSON
+end rig_GetJson
+
+command rig_SetJson jsonAssetPath, resultJSON
+   if rigWriteFile (jsonAssetPath, resultJSON) is FALSE then
+      return "Error, unable to write the file"
+   else
+      return "Great!" && jsonAssetPath
+   end if
+end rig_SetJson
+
+
+--> Rig
+-
+function rig_StackIsSameAsLocal shortFile
+   put rig_FetchStack (shortFile) into remoteStackData
+   put stack_ExtractScriptOnlyName (remoteStackData) into stackName
+   put the stack_Data of stack stackName into localStackData
+   put localStackData = remoteStackData into isSame
+   return isSame
+end rig_StackIsSameAsLocal
+
+
+--> Rig | Folders
+-
+function rig_GetApplicationFolder
+   if the environment = "server" then -- revIgniter version
+      put gAPPPATH into rigApplicationFolder
+   else
+      -- from stored serverArray
+      -- useful for local clinet operations on remote server
+      put rig_GetServerApplicationFolder() into rigApplicationFolder
+   end if
+   text_AddTrailing rigApplicationFolder, "/"
+   return rigApplicationFolder
+end rig_GetApplicationFolder
+
+function rig_GetSystemFolder pFolder
+   -- quick hack
+   -- this depends on the site specific configuration
+   -- ie is it configured to have multiple sites
+   
+   if the environment = "server" then
+      put gAPPPATH into rigSystemFolder
+   else
+      put rig_GetServerApplicationFolder() into rigSystemFolder
+   end if
+   
+   -- here is the hack :)
+   set the itemdelimiter to "/"
+   if server_GetURL() = "livecode.world" then
+      delete item -1 of rigSystemFolder
+   else
+      delete item -2 to -1 of rigSystemFolder
+   end if
+   
+   text_AddTrailing rigSystemFolder, "/"
+   if pFolder is not empty then
+      put pFolder & "/" after rigSystemFolder
+   end if
+   return rigSystemFolder
+end rig_GetSystemFolder
+
+function rig_ControllerFolder
+   if the environment = "server" then return gAPPPATH & "controllers/"
+   
+   put rig_GetFolder ("controllers") into someFolder
+   return someFolder
+end rig_ControllerFolder
+
+function rig_HelperFolder
+   put rig_GetFolder ("helpers") into someFolder
+   return someFolder
+end rig_HelperFolder
+
+function rig_StackFolder
+   put rig_GetApplicationFolder() into someFolder
+   put "stacks/" after someFolder
+   return someFolder
+end rig_StackFolder
+
+function rig_GetFolder shortFolder
+   put rig_GetApplicationFolder() into someFolder
+   put shortFolder & "/" after someFolder
+   return someFolder
+end rig_GetFolder
+
+
+--> Rig | Files
+-
+function rig_StackPath shortPath
+   put rig_GetApplicationFolder() into rigApplicationFolder
+   put someFolder & shortPath into serverStackPath
+   return serverStackPath
+end rig_StackPath
+
+function rig_ControllerPath pShortControllerFile
+   put rig_ApplicationPath ("controllers/" & pShortControllerFile) into somePath
+   return somePath
+end rig_ControllerPath
+
+function rig_ApplicationPath pShortpath
+   put rig_GetApplicationFolder() into rigApplicationPath
+   if pShortpath is not empty then put pShortpath after rigApplicationPath
+   return rigApplicationPath
+end rig_ApplicationPath
+
+
+--> Rig | Delete
 -
 command rig_DeleteController shortControllerFile, serverTLD
    rig_CheckFileForDeletion shortControllerFile, serverTLD
@@ -52,7 +366,7 @@ command rig_DeleteController shortControllerFile, serverTLD
    --
    put server_GetURL() into remoteDomain
    put server_GetSshUser() into sshUser
-   shell_DeleteFile sshUser, remoteDomain, serverFilePath
+   ssh_DeleteFile sshUser, remoteDomain, serverFilePath
    put the result into shellResult
    return shellResult
 end rig_DeleteController
@@ -112,7 +426,7 @@ command rig_DeleteStack shortStackFile, pDontNotify
          return someComment
       default
          -- it's a livecode file
-         shell_DeleteFile sshUser, remoteDomain, stackPath
+         ssh_DeleteFile sshUser, remoteDomain, stackPath
          put the result into someResult
          
          if pDontNotify is not true then
@@ -122,33 +436,6 @@ command rig_DeleteStack shortStackFile, pDontNotify
          return someResult
    end switch
 end rig_DeleteStack
-
-
---> Rig | Path | Array
--
-function rig_FetchStackPathArray
-   put rig_StackFolder() into stackFolder
-   put rig_FetchPathArray (stackFolder) into fileArray
-   return fileArray
-end rig_FetchStackPathArray
-
-function rig_FetchControllerPathArray
-   put rig_ControllerFolder () into controllerFolder
-   put rig_FetchPathArray (controllerFolder) into fileArray
-   return fileArray
-end rig_FetchControllerPathArray
-
-function rig_FetchPathArray someFolder
-   put server_GetURL() into serverURL
-   put server_GetSshUser() into sshUser
-   put server_GetSshKeyPath() into sshKeyPath
-   put server_FetchFileArray (serverURL, sshUser, someFolder, sshKeyPath) into fileAndFolderArray
-   
-   -- this does not take into account any nested controller folders
-   -- put fileAndFolderArray ["folder"] into nestedFolderArray
-   put fileAndFolderArray ["file"] into filePathArray
-   return filePathArray
-end rig_FetchPathArray
 
 
 --> Rig | Use
@@ -271,14 +558,14 @@ function rig_ConstructFedwikiPageArray headerPageArray
    -- make a TOC
    rig_ConstructMarkdownToc topSectionArray, 1, lookUpArray, markdownTOC
    put "# TOC" & CR before markdownTOC
-   fedwiki_AddMarkdownToPageArray fedwikiPageArray, markdownTOC
+   pageArray_AddMarkdown fedwikiPageArray, markdownTOC
    
    put rig_ConstructSourceArray (pageTitle, sourceUrl, lookUpArray, pVersionNum) into sourceArray
-   put fedwiki_ConstructJournalArray (pageTitle, sourceArray) into fedwikiPageArray ["journal"]
+   put pageArray_ConstructJournal (pageTitle, sourceArray) into fedwikiPageArray ["journal"]
    
    return fedwikiPageArray
 end rig_ConstructFedwikiPageArray
-   
+
 private function rig_ConstructSourceArray pageTitle, sourceUrl, lookUpArray, pVersionNum
    put "https://livecode.world/revIgniter/transportAgain" into transportURL
    put "https://github.com/LiveCodeWorld/revIgniter,lc" into repoURL
@@ -291,7 +578,7 @@ private function rig_ConstructSourceArray pageTitle, sourceUrl, lookUpArray, pVe
    end if
    return pSourceArray
 end rig_ConstructSourceArray
-   
+
 private command rig_ConstructMarkdownToc sectionArray, sectionPath, @lookUpArray, @markdownTOC
    put (the number of lines of the keys of sectionArray) - 2 into subSectionNum
    repeat with sectionNum = subSectionNum down to 1
@@ -312,7 +599,7 @@ private command rig_ConstructMarkdownToc sectionArray, sectionPath, @lookUpArray
    end repeat
    delete char -1 of markdownTOC
 end rig_ConstructMarkdownToc
-   
+
 command rig_AddContentToFedwikiPageArray @fedwikiPageArray, sectionContentArray
    repeat for each key itemNum in sectionContentArray
       put sectionContentArray [itemNum] into someHTML
@@ -320,7 +607,7 @@ command rig_AddContentToFedwikiPageArray @fedwikiPageArray, sectionContentArray
       -- here we can tidy and process each section
       switch
          default
-            fedwiki_AddHtmlToPageArray fedwikiPageArray, someHTML
+            pageArray_AddHtml fedwikiPageArray, someHTML
       end switch
    end repeat
 end rig_AddContentToFedwikiPageArray
@@ -333,34 +620,7 @@ command rig_CleanHandlerNames @someContent
 end rig_CleanHandlerNames
 
 
---> Rig | List
--
-function rig_ListHelperFiles
-   put rig_GetFolder ("helpers") into someFolder
-   put rig_ListFiles (someFolder) into shortFiles
-   return shortFiles
-end rig_ListHelperFiles
-
-function rig_ListControllerFiles
-   put rig_GetFolder ("controllers") into someFolder
-   put rig_ListFiles (someFolder) into shortFiles
-   return shortFiles
-end rig_ListControllerFiles
-
-function rig_ListStackFiles
-   put rig_GetFolder ("stacks") into someFolder
-   put rig_ListFiles (someFolder) into shortFiles
-   return shortFiles
-end rig_ListStackFiles
-
-function rig_ListSystemHelperFiles
-   put rig_GetSystemFolder ("helpers") into someFolder
-   put rig_ListFiles (someFolder) into shortFiles
-   return shortFiles
-end rig_ListSystemHelperFiles
-
-
---> revIgniter | Fetch
+--> Rig | Fetch
 -
 function rig_FetchController shortFile, pServerURL
    put rig_GetFolder ("controllers") & shortFile into somePath
@@ -392,23 +652,8 @@ function rig_FetchSystemFile shortStackFile, shortFolder, pServerURL
    return someData
 end rig_FetchSystemFile
 
-function rig_FetchFile somePath, pServerURL  
-   if pServerURL is not empty then
-      put server_GetURL() into oServerURL
-      server_LoadDetails pServerURL
-   end if
-   
-   put server_GetURL() into serverAddress
-   put server_GetSshUser() into sshUser
-   put server_FetchFile (somePath, serverAddress, sshUser) into stackOrScript
-   if pServerURL is not empty then
-      server_LoadDetails oServerURL
-   end if
-   return stackOrScript
-end rig_FetchFile
 
-
---> revIgniter | Store
+--> Rig | Store
 -
 command rig_StoreController shortFile, rigScript
    put rig_ApplicationPath ("controllers/" & shortFile) into somePath
@@ -430,6 +675,7 @@ command rig_StoreStack stackName
    end if
    
    put the name of stack stackName into stackObject
+   set the behavior of stack stackName to empty -- hack to prevent missing behaviors on server
    save stackObject
    
    put the filename of stack stackName into localFile
@@ -441,74 +687,9 @@ command rig_StoreStack stackName
    return the result
 end rig_StoreStack
 
-command rig_StoreStackData shortFile, stackData
-   put rig_ApplicationPath ("stacks/" & shortFile) into somePath
-   put rig_GetFolder ("stacks") & shortFile into somePath
-   rig_StoreData stackData, somePath
-   return the result
-end rig_StoreStackData
 
-command rig_UploadLocalFile localFile, pathToStore
-   put server_GetURL() into serverAddress
-   put server_GetSshUser() into sshUser
-   server_StoreFile localFile, pathToStore, serverAddress, sshUser
-   put the result into shellResult
-   return shellResult
-end rig_UploadLocalFile
-
-command rig_StoreData someData, somePath
-   put server_GetURL() into serverAddress
-   put server_GetSshUser() into sshUser
-   server_StoreData someData, somePath, serverAddress, sshUser
-   put the result into someResult
-   return someResult
-end rig_StoreData
-
-
---> Rig | Files
+--> Server | Remote | Scripts
 -
-function rig_StackPath shortPath
-   put rig_GetApplicationFolder() into someFolder
-   put someFolder & shortPath into serverStackPath
-   return serverStackPath
-end rig_StackPath
-
-function rig_ControllerPath pShortControllerFile
-   put rig_ApplicationPath ("controllers/" & pShortControllerFile) into somePath
-   return somePath
-end rig_ControllerPath
-
-
---> Rig | Folders
--
-function rig_HelperFolder
-   put rig_GetFolder ("helpers") into someFolder
-   return someFolder
-end rig_HelperFolder
-
-function rig_StackFolder
-   put rig_GetApplicationFolder() into someFolder
-   put "stacks/" after someFolder
-   return someFolder
-end rig_StackFolder
-
-function rig_GetFolder shortFolder
-   put rig_GetApplicationFolder() into someFolder
-   put shortFolder & "/" after someFolder
-   return someFolder
-end rig_GetFolder
-
-function rig_ControllerFolder
-   if the environment = "server" then
-      return gAPPPATH & "controllers/"
-   else
-      put rig_GetServerApplicationFolder() into rigApplicationFolder
-      text_AddTrailing rigApplicationFolder, "/"
-      put "controllers/" after rigApplicationFolder
-      return rigApplicationFolder
-   end if
-end rig_ControllerFolder
-
 function rig_RoutingScript
    -- was "rig_RoutingScript"
    put rig_ApplicationPath() & "/config/routes.lc" into somePath
@@ -517,53 +698,6 @@ function rig_RoutingScript
    put server_FetchFile (somePath, serverAddress, sshUser) into rigScript
    return rigScript
 end rig_RoutingScript
-
-function rig_ApplicationPath pShortpath
-   -- was "revigniter_ApplicationPath"
-   put rig_GetApplicationFolder() into rigApplicationPath
-   if pShortpath is not empty then put pShortpath after rigApplicationPath
-   return rigApplicationPath
-end rig_ApplicationPath
-
-function rig_GetSystemFolder pFolder
-   -- quick hack
-   -- this depends on the site specific configuration
-   -- ie is it configured to have multiple sites
-   
-   if the environment = "server" then
-      put gAPPPATH into rigSystemFolder
-   else
-      put rig_GetServerApplicationFolder() into rigSystemFolder
-   end if
-   
-   -- here is the hack :)
-   set the itemdelimiter to "/"
-   if server_GetURL() = "livecode.world" then
-      delete item -1 of rigSystemFolder
-   else
-      delete item -2 to -1 of rigSystemFolder
-   end if
-   
-   text_AddTrailing rigSystemFolder, "/"
-   if pFolder is not empty then
-      put pFolder & "/" after rigSystemFolder
-   end if
-   return rigSystemFolder
-end rig_GetSystemFolder
-
-
---> Server | Remote | Rig | Paths
--
-function rig_GetApplicationFolder
-   if the environment = "server" then
-      -- revIgniter version
-      put gAPPPATH into rigApplicationFolder
-   else
-      put rig_GetServerApplicationFolder() into rigApplicationFolder
-   end if
-   text_AddTrailing rigApplicationFolder, "/"
-   return rigApplicationFolder
-end rig_GetApplicationFolder
 
 
 --> Private | revIgniter
@@ -584,178 +718,3 @@ private command text_Indent @someText, pIndentChars
    delete char -1 of newText
    put newText into someText
 end text_Indent
-
-
---> Deps
--
-/*
-function script_HkeysFromAvailable handlerTable, someScript, pReturnHow
-   repeat for each line someLine in handlerTable
-      put word 1 of someLine into handlerType
-      if handlerType is not "M" then next repeat
-      
-      put word 3 of someLine into startLineNum
-      -- put word 4 of someLine into endLineNum
-      put line startLineNum of someScript into startLine
-      if word 1 of startLine is not "on" then next repeat
-      
-      put word 2 of someLine into hName
-      switch pReturnHow
-         case "hKey"
-            put hName,hType,tObject,1 & CR after hKeys
-            break
-         case "name"
-            put hName & CR after hKeys
-            break
-         default
-            put hName,hType & CR after hKeys
-      end switch
-   end repeat
-   delete char -1 of hKeys
-   return hKeys
-end script_HkeysFromAvailable
-
-command lcw_Notify someMessage, isSticky, paramArray
-   -- see "http://osx.c0de.academy/view/notifications-in-osx"
-   replace "'" with quote in someMessage
-   if paramArray is an array then put text_Merge (someMessage, paramArray) into someMessage
-   switch the platform
-      case "MacOS"
-         osx_Notify someMessage, isSticky
-         break
-      default
-         put someMessage
-   end switch
-end lcw_Notify
-
-command osx_Notify someMessage, pTitle
-   switch
-      case version_IsEarlier (the systemversion, "10.9")
-         put someMessage
-         return "Old OSX system with growl not installed."
-      default
-         -- it's Mavericks or above
-         -- osascript -e 'display notification "Lorem ipsum dolor sit amet" with title "Title"'
-         replace quote with empty in someMessage
-         if pTitle is empty then put "LiveWorld Notification" into pTitle
-         put "osascript -e" && "'" & "display notification" && kwote (someMessage) into someShell
-         put "with title" && kwote (pTitle) after someShell
-         put "'" after someShell
-         put shell (someShell) into shellResult
-         return shellResult
-   end switch
-end osx_Notify
-
-function array_Fetch someFile
-   put url ("binfile:" & someFile) into encodedDataArray
-   if encodedDataArray is empty then return empty
-   put arraydecode (encodedDataArray) into modelArray
-   return modelArray
-end array_Fetch
-
-command folder_CreateNested @someFolder
-   text_AddTrailing someFolder, slash
-   if there is a folder someFolder then return empty
-   set the itemdelimiter to "/"
-   repeat with itemNum = 1 to the number of items of someFolder
-      put item 1 to itemNum of someFolder & "/" into testFolder
-      if there is a folder testFolder then next repeat
-      create folder testFolder
-   end repeat
-end folder_CreateNested
-
-function kwote someText
-   put quote & someText & quote into quotedText
-   return quotedText
-end kwote
-
-command text_AddTrailing @someText, someChar
-   if char -1 of someText is not someChar then
-      put someChar after someText
-   end if
-end text_AddTrailing
-
-function version_IsEarlier testVersion, refVersion
-   get _convertVersionToNumber (refVersion)
-   put it  > _convertVersionToNumber (testVersion) into isEarlier
-   return isEarlier
-end version_IsEarlier
-
-function _convertVersionToNumber someVersion
-   -- assumes a version of the format ###.###.###
-   -- to be safe each number can be up to 3 digits (they are usually 2)
-   set the itemdelimiter to "."
-   set the numberformat to "000"
-   put (item 1 of someVersion + 0) & (item 2 of someVersion + 0) & (item 3 of someVersion + 0) into someNum
-   return someNum
-end _convertVersionToNumber
-
-function text_Merge mergeText, paramArray
-   -- was "text_Merge"
-   repeat for each key someKey in paramArray
-      put paramArray [someKey] into someValue
-      put "put someValue into" && someKey into doScript
-      do doScript
-   end repeat
-   put merge (mergeText) into translatedText
-   return translatedText
-end text_Merge
-
-getprop stack_Object
-    return the defaultstack
-end stack_Object
-
-function file_DetailedInfo filePath
-   if filePath is empty then return empty
-   put filePath into someDirectory
-   if there is a file filePath then
-      set the itemdelimiter to "/"
-      put last item of filePath into shortFileName
-      delete last item of someDirectory
-      
-      put the directory into oDirectory
-      set the directory to someDirectory
-      put the detailed files into detailedFileTable     
-      set the directory to oDirectory
-      
-      put urlencode(shortFileName) into shortFileName -- seems to need it again???
-      filter detailedFileTable with (shortFileName & ",*")
-      return detailedFileTable
-   else if there is a folder filePath then
-      put the directory into oDirectory
-      set the directory to someDirectory
-      put the detailed files into detailedFileTable     
-      set the directory to oDirectory
-      return detailedFileTable
-   else
-      return empty
-   end if
-end file_DetailedInfo
-
-function file_GetSize filePath
-   get file_DetailedInfo (filePath)
-   return item 2 of it
-end file_GetSize
-
-command html_Tidy @someHtml
-   put the tempname & ".html" into inputFile 
-   put someHtml into url ("file:" & inputFile)
-   
-   put "tidy --force-output true --char-encoding utf8 --input-encoding utf8 --output-encoding utf8 --output-xml true -asxml -m" && inputFile into someShell
-   put shell (someShell) into shellResult   
-   put url ("file:" & inputFile) into someHtml
-end html_Tidy
-
-command line_Delete someLines, @fromContainer, partLine, skipLines
-   set the wholematches to (partLine is empty)
-   repeat with ii = 1 to the number of lines of someLines
-      put line ii of someLines into someLine
-      get lineoffset(someLine, fromContainer, skipLines)
-      if it is not 0 then
-         put it + skipLines into lineNum
-         delete line lineNum of fromContainer
-      end if 
-   end repeat
-   return the number of lines of someIndex
-end line_Delete
-*/

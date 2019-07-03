@@ -17,10 +17,6 @@ on menu_DisplayRigControllers
    display_RigControllerArray
 end menu_DisplayRigControllers
 
-on menu_CreateNewController
-   rig_CreateNewController
-end menu_CreateNewController
-
 on _
 end _
 

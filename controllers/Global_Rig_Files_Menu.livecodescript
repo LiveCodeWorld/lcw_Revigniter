@@ -10,9 +10,7 @@ version: 0.1
 --> Global | Rig | Files | Menu
 -
 on menu_SwitchServer stackObject, serverURL
-   -- put rig_GetServerApplicationFolder ("HAP") into serverArray
-   -- server_SavePrefArray serverArray, "Default"
-   server_LoadDetails serverURL
+   server_SetURL serverURL
    lcw_Notify server_GetIPaddress()
 end menu_SwitchServer
 
@@ -26,7 +24,7 @@ on _
 end _
 
 on menu_DisplayRigScript scriptObject
-   set the behavior of scriptObject to the long id of stack "behavior_RigLocalOveride"
+   rig_SetOveride true, scriptObject
    --
    put the short_ControllerFile of scriptObject into shortController
    -- put the server_TLD of cardObject into serverTLD
@@ -35,7 +33,7 @@ on menu_DisplayRigScript scriptObject
    --   
    if the shiftKey is "Down" then
       display_Text rigScript, shortController, "Global | Rig | Files | Menu"
-      set the behavior of scriptObject to empty
+      rig_SetOveride false, scriptObject
    else
       atom_DisplayText rigScript, "lc", true
    end if
