@@ -125,6 +125,9 @@ on menu_UploadController scriptObject
    put the script_Help of scriptObject into scriptDescription
    --
    put rig_ConstructControllerScript (scriptObject, shortControllerFile, depShortPaths, scriptDescription) into rigScript
+   put rigScript
+   
+   /*
    rig_StoreController shortControllerFile, rigScript
    --
    put the result into shellResult
@@ -134,6 +137,7 @@ on menu_UploadController scriptObject
    else
       lcw_Notify "Uploaded controller!"
    end if
+   */
 end menu_UploadController
 
 on menu_UploadStackLibrary scriptObject
@@ -285,3 +289,4 @@ on menu_ForceLoadServerArray
    
    server_SetURL "rest.livecode.world"
 end menu_ForceLoadServerArray
+

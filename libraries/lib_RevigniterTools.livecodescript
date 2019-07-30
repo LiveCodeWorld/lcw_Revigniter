@@ -24,6 +24,25 @@ problems regarding duplication of files. Instead we access local stack libraries
 
 --> Working on
 -
+command rig_SetLocalControllerFolder @controllerFolder
+   -- utility
+   if controllerFolder is empty then
+      put rig_FetchLocalControllerFolder() into controllerFolder
+      if there is not a folder controllerFolder then
+         put controllerFolder
+         answer folder "Select a folder for your controllers..." as sheet
+         if it is empty then
+            answer warning "Cannot locate controller folder. Please set one!"
+            exit to top
+         else
+            put it & slash into controllerFolder
+            rig_StoreControllerFolder controllerFolder
+         end if
+      end if
+   end if
+   text_AddTrailing controllerFolder, slash
+end rig_SetLocalControllerFolder
+
 function rig_ExtractDependencies buttonScript
    return empty
 end rig_ExtractDependencies
@@ -105,19 +124,6 @@ command rig_StoreControllerFolder rigControllerFolder
    put the result into  dataArray
    return dataArray
 end rig_StoreControllerFolder
-
-command rig_SetLocalControllerFolder @controllerFolder
-   -- utility
-   if controllerFolder is empty then
-      put rig_FetchLocalControllerFolder() into controllerFolder
-      if there is not a folder controllerFolder then
-         put controllerFolder
-         put empty into controllerFolder
-         answer warning "Cannot locate controller folder. Please set one!"
-         exit to top
-      end if
-   end if
-end rig_SetLocalControllerFolder
 
 
 --> Rig | Create
@@ -227,11 +233,10 @@ end rig_ConstructControllerScript
 function rig_ConstructControllerFromScript controllerScript, shortControllerFile, controllerHandlerList, scriptDescription, pShortDepLibFiles
    -- controllerScript must has getprop and setprop handers stripped out
    replace CR with comma in controllerHandlerList
-   put scaffold_GetTemplate ("revIgniter Controller Template") into scriptTemplate
-   put scaffold_GetTemplate ("revIgniter Dependency Section")  into dependencyTemplate
    
    set the itemdelimiter to "."
    put item 1 of shortControllerFile into shortControllerName
+   
    -- not sure if we need to expose this
    if shortControllerName is not among the items of controllerHandlerList then
       if controllerHandlerList is empty then
@@ -246,15 +251,20 @@ function rig_ConstructControllerFromScript controllerScript, shortControllerFile
    text_Indent initScriptLines, "      "
    --
    put rig_FilterControllerScript (controllerScript, hTable) into publicHandlers
-   put rig_ExtractDependencies (controllerScript) into handlerDependencies
-   put merge (scriptTemplate) into rigScript
    --
+   put scaffold_GetTemplate ("revIgniter Controller Template") into scriptTemplate
+   put merge (scriptTemplate) into rigScript   
+   --
+   /*
+   put scaffold_GetTemplate ("revIgniter Dependency Section")  into dependencyTemplate
+   put rig_ExtractDependencies (controllerScript) into handlerDependencies
    if handlerDependencies is not empty then
       put merge (dependencyTemplate) into dependencySection
       text_Indent dependencySection, "   "
       put CR & CR after rigScript
       put dependencySection after rigScript
    end if
+   */
    
    put "<?lc" & CR before rigScript
    put CR & CR & "?>" after rigScript
