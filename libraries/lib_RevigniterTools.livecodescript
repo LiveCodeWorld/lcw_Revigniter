@@ -284,8 +284,9 @@ function rig_FilterControllerScript someScript, hTable
    replace "on mouseUp" with "on index" in controllerScript
    replace "end mouseUp" with "end index" in controllerScript
    
+   -- script_DeleteHandler controllerScript, "G dep_StackNames", hTable
    -- remove getprop and setprops (well the one we use for now)
-   script_DeleteHandler controllerScript, "G dep_StackNames", hTable
+   script_StripPropHandlers controllerScript, hTable
    
    return controllerScript
 end rig_FilterControllerScript

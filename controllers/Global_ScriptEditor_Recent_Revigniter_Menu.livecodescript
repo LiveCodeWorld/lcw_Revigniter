@@ -4,6 +4,7 @@
 license: GPLv3
 name: Global_ScriptEditor_Recent_Revigniter_Menu
 type: controller
+target: scriptObject
 version: 0.4
 
 
@@ -61,16 +62,17 @@ on insert_HeaderMenu
    return "Global | ScriptEditor | Header | Menu"
 end insert_HeaderMenu
 
-on submenu_ScriptDeps
-   return "Global | Script | Dep | Menu"
-end submenu_ScriptDeps
+on menu_ScriptTools sObject
+   display_Script sObject
+end menu_ScriptTools
 
 on _
 end _
 
-on menu_CheckTransporterDeps sObject
-   transport_CheckObjectDeps sObject
-end menu_CheckTransporterDeps
+on menu_DisplayTransporterDeps sObject
+   -- transport_CheckObjectDeps sObject
+   display_TransportObjectDeps sObject
+end menu_DisplayTransporterDeps
 
 on menu_TestTransporterGraphs sObject
    put revRuggedID (sObject) into sObject
@@ -125,9 +127,6 @@ on menu_UploadController scriptObject
    put the script_Help of scriptObject into scriptDescription
    --
    put rig_ConstructControllerScript (scriptObject, shortControllerFile, depShortPaths, scriptDescription) into rigScript
-   put rigScript
-   
-   /*
    rig_StoreController shortControllerFile, rigScript
    --
    put the result into shellResult
@@ -137,7 +136,6 @@ on menu_UploadController scriptObject
    else
       lcw_Notify "Uploaded controller!"
    end if
-   */
 end menu_UploadController
 
 on menu_UploadStackLibrary scriptObject
@@ -173,9 +171,6 @@ on menu_DisplayRigStackLibs
    display_RigStackLibs
 end menu_DisplayRigStackLibs
 
-on _
-end _
-
 on menu_RevigniterHelp
    launch url "https://revigniter.com/userGuide/toc.html"
 end menu_RevigniterHelp
@@ -193,14 +188,6 @@ end _
 on submenu_Ide
    return "Global | IDE | Menu"
 end submenu_Ide
-
-on submenu_Rig
-   return "Global | Rig | Files | Menu"
-end submenu_Rig
-
-on submenu_Gist
-   return "Global | Gist | Menu"
-end submenu_Gist
 
 on submenu_Dev
    return "Dev | Menu"
@@ -242,9 +229,7 @@ on _
 end _
 
 on menu_DisplayObjectGraph scriptObject
-   local pGraphStyle, pProcessObject, projectName
-   --
-   display_ObjectGraph scriptObject, projectName, pGraphStyle, pProcessObject, false
+   display_CreateScriptObjectGraph scriptObject
    --
    display_ObjectDepArray scriptObject
 end menu_DisplayObjectGraph

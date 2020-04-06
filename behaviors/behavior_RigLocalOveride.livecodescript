@@ -122,6 +122,19 @@ end _ConstructShortArrayFile
 
 --> Fedwiki | Overrides
 -
+-- command fedwiki_SetRawJSON @rawJSON
+   /*
+   -- mock up $_POST_RAW from selected display of stack "Transporter Drop Urls"
+   put the mock_DropJson of stack "Transporter Drop Urls" into rawJSON
+   put rawJSON into $_POST_RAW
+   return false
+   */
+   
+   put the test_RawJSON of mController into rawJSON
+   put rawJSON into $_POST_RAW
+   return false
+end fedwiki_SetRawJSON
+
 command fedwiki_DeconstructDropped @droppedText, @droppedHtml, @droppedURL
    put _TestGetDroppedUrl() into droppedURL
    put "Test dropped text" into droppedText
@@ -141,7 +154,7 @@ function fedwikipedia_GetPageSlug
 end fedwikipedia_GetPageSlug
 
 command fedwiki_ReturnPageArray pageArray
-   pageArray_StripJournal pageArray
+   -- pageArray_StripJournal pageArray
    put json_FromArray (pageArray) into someJSON
    
    display_Array pageArray, "fedwiki_ReturnPageArray()"

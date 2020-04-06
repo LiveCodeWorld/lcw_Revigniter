@@ -12,10 +12,23 @@ This menu is used by the scripteditor handler list field when in rig mode.
 
 --> Menu | Init
 -
+local LocalArray
+
 on menu_Init tObject, hKey
+   put hKey into LocalArray ["hKey"]
+   --
    hkey_Deconstruct hKey, hName, hType, hObject, hNum
    rig_SetOveride true, hObject
 end menu_Init
+
+command _SetHkeyInfo @controllerHandler, @localRigStackObject, @controllerName
+   put scriptEditor_Object() into localRigStackObject
+   put the short name of localRigStackObject into controllerName
+   --
+   put rev_GetHandlerTreeSelectedInfo() into hInfo
+   put word 1 of hInfo into hType
+   put word 2 of hInfo into controllerHandler
+end _SetHkeyInfo
 
 getprop disabled_GraphTransporter [hKey]
    put hkey_IsTransportHandler (hKey) into isTransporter
@@ -44,44 +57,31 @@ end insert_HelpMenu
 on _
 end _
 
-on menu_DisplayDeps hKey
-   display_TransportHkeyDeps hKey
-end menu_DisplayDeps
-
 on menu_TestLocalTransporter
-   put rev_GetHandlerTreeSelectedInfo() into hInfo
-   put word 1 of hInfo into hType
-   put word 2 of hInfo into controllerHandler
-   put scriptEditor_Object() into stackObject
+   _SetHkeyInfo controllerHandler, localRigStackObject, controllerName
    --
-   dispatch controllerHandler to stackObject
+   dispatch controllerHandler to localRigStackObject
 end menu_TestLocalTransporter
 
-on menu_TestRemoteTransport hKey
-   put item 1 of hKey into controllerHandler
-   put item 3 of hKey into stackObject
-   put the short name of stackObject into controllerName
+on menu_TestRemoteTransport
+   _SetHkeyInfo controllerHandler, localRigStackObject, controllerName
    --
-   fedwiki_SetRawJSON rawJSON
-   -- put fedwiki_GetDroppedUrl (rawJSON) into dropeeedURL
+   put the test_RawJSON of localRigStackObject into rawJSON
+   if rawJSON is empty then
+      put the mock_DropJson of stack "Transporter Drop Urls" into rawJSON
+   end if
+   
    put rig_ConstructControllerUrl (controllerName, controllerHandler) into restURL
-   --
    fedwiki_PostJSON rawJSON, restURL
    put the result into pageJSON
    put json_ToArray (pageJSON) into pageArray
+   
    if pageArray is an array then
       display_Array pageArray
    else
       put pageJSON -- an error (not json)
    end if
 end menu_TestRemoteTransport
-
-on _
-end _
-
-on menu_GraphTransporter hKey
-   transporter_CreateHkeyGraph hKey
-end menu_GraphTransporter
 
 on _
 end _
@@ -93,6 +93,21 @@ end submenu_Sketches
 
 --> Dev | Menu
 -
+on menu_GraphTransporter
+   -- _SetHkeyInfo controllerHandler, stackObject
+   put LocalArray ["hKey"] into hKey
+   --
+   transporter_CreateHkeyGraph hKey
+end menu_GraphTransporter
+
+on menu_DisplayDeps
+   put LocalArray ["hKey"] into hKey
+   display_TransportHkeyDeps hKey
+end menu_DisplayDeps
+
+on _
+end _
+
 on menu_TransportBehaviorOveride
    edit the script of stack "behavior_RigLocalOveride"
 end menu_TransportBehaviorOveride
@@ -153,37 +168,6 @@ end menu_CreateHandlerGraph
 
 --> Deps
 -
-private command hkey_CreateAndDisplayDeps hkey, pProjectName, pClusterBoolean
-   set the cursor to watch
-   
-   hkey_CreateDependencyGraph hkey, pProjectName, "hierarchical", pClusterBoolean
-   put the result into imageFile
-   
-   display_HkeySVG hkey
-   put the result into displayView
-   return displayView
-end hkey_CreateAndDisplayDeps
-
-private command hkey_CreateDependencyGraph hKey, pProjectName, pGraphStyle, pClusterBoolean
-   put empty into overlayName -- defaults to pGraphStyle or "hierarchical"
-   if pClusterBoolean is not false then 
-      put empty into clusterRank
-   else
-      put "none" into clusterRank
-   end if
-   
-   put hkey_DependencyArrayFromObjects (hKey, pProjectName, true) into hKeyArray
-   put hkey_MetadataFolder (hKey) into hkeyMetadataFolder
-   folder_CreateNested hkeyMetadataFolder
-   
-   overlay_CreateGraph hkeyMetadataFolder, hkeyArray, overlayName, hKey, pGraphStyle, clusterRank, empty, "svg"
-   -- put the result into overlayArray
-   -- put overlayArray_GetImageFile (overlayArray, hkeyMetadataFolder) into imageFile
-   
-   put hkey_SvgFile (hKey, pGraphStyle) into svgFile
-   return svgFile
-end hkey_CreateDependencyGraph
-
 function test_Remote mTarget, controllerHandler
    put the displayed_ControllerName of mTarget into controllerName
    put rig_ConstructControllerUrl (controllerName, controllerHandler) into restURL
@@ -214,3 +198,34 @@ function _DiplayView
    put display_FindView ("Stack Libraries", serverURL) into displayView
    return displayView
 end _DiplayView
+
+private command hkey_CreateAndDisplayDeps hkey, pProjectName, pClusterBoolean
+   set the cursor to watch
+   
+   hkey_CreateDependencyGraph hkey, pProjectName, "hierarchical", pClusterBoolean
+   put the result into imageFile
+   
+   display_HkeySVG hkey
+   put the result into displayView
+   return displayView
+end hkey_CreateAndDisplayDeps
+
+private command hkey_CreateDependencyGraph hKey, pProjectName, pGraphStyle, pClusterBoolean
+   put empty into overlayName -- defaults to pGraphStyle or "hierarchical"
+   if pClusterBoolean is not false then 
+      put empty into clusterRank
+   else
+      put "none" into clusterRank
+   end if
+   
+   put hkey_DependencyArrayFromObjects (hKey, pProjectName, true) into hKeyArray
+   put hkey_MetadataFolder (hKey) into hkeyMetadataFolder
+   folder_CreateNested hkeyMetadataFolder
+   
+   overlay_CreateGraph hkeyMetadataFolder, hkeyArray, overlayName, hKey, pGraphStyle, clusterRank, empty, "svg"
+   -- put the result into overlayArray
+   -- put overlayArray_GetImageFile (overlayArray, hkeyMetadataFolder) into imageFile
+   
+   put hkey_SvgFile (hKey, pGraphStyle) into svgFile
+   return svgFile
+end hkey_CreateDependencyGraph
