@@ -4,31 +4,42 @@
 license: GPLv3
 name: Global_revIgniter_Remote_Menu
 type: controller
+target: hKey
 version: 0.4
 
 /*
 This menu is used by the scripteditor handler list field when in rig mode.
 */
 
+--> Working on
+-
+command _SetHkeyInfo @hName, @rigStackObject, @shortController
+   -- simplify and use scriptEditor_GetHkey() (mTarget)
+   put scriptEditor_GetHkeyLine() into hKeyLine
+   hkeyLine_Deconstruct hKeyLine, hName, hType, rigStackObject
+   --
+   put scriptEditor_Object() into rigStackObject
+   put the short name of rigStackObject into shortController
+   --
+   put hKeyLine_Construct(hName, hType, rigStackObject) into hkey
+   return hkey
+end _SetHkeyInfo
+
+
 --> Menu | Init
 -
 local LocalArray
 
-on menu_Init tObject, hKey
+on menu_Init tObject
+   put scriptEditor_GetHkey() into hKey
    put hKey into LocalArray ["hKey"]
    --
-   hkey_Deconstruct hKey, hName, hType, hObject, hNum
-   rig_SetOveride true, hObject
+   rig_SetOveride true
 end menu_Init
 
-command _SetHkeyInfo @controllerHandler, @localRigStackObject, @controllerName
-   put scriptEditor_Object() into localRigStackObject
-   put the short name of localRigStackObject into controllerName
-   --
-   put rev_GetHandlerTreeSelectedInfo() into hInfo
-   put word 1 of hInfo into hType
-   put word 2 of hInfo into controllerHandler
-end _SetHkeyInfo
+getprop menu_Target [tObject]
+   return LocalArray ["hKey"]
+end menu_Target
 
 getprop disabled_GraphTransporter [hKey]
    put hkey_IsTransportHandler (hKey) into isTransporter
@@ -47,31 +58,30 @@ getprop disabled_GraphTransporter [hKey]
 end disabled_GraphTransporter
 
 
-
 --> Global | RevIgniter | Remote | Menu
 -
-on insert_HelpMenu
+on submenu_HelpMenu
    return "Global | Hkey | Help | Menu"
-end insert_HelpMenu
+end submenu_HelpMenu
 
 on _
 end _
 
 on menu_TestLocalTransporter
-   _SetHkeyInfo controllerHandler, localRigStackObject, controllerName
+   _SetHkeyInfo hName, rigStackObject, shortController
    --
-   dispatch controllerHandler to localRigStackObject
+   dispatch hName to rigStackObject
 end menu_TestLocalTransporter
 
 on menu_TestRemoteTransport
-   _SetHkeyInfo controllerHandler, localRigStackObject, controllerName
+   _SetHkeyInfo hName, rigStackObject, shortController
    --
-   put the test_RawJSON of localRigStackObject into rawJSON
+   put the test_RawJSON of rigStackObject into rawJSON
    if rawJSON is empty then
       put the mock_DropJson of stack "Transporter Drop Urls" into rawJSON
    end if
    
-   put rig_ConstructControllerUrl (controllerName, controllerHandler) into restURL
+   put rig_ConstructControllerUrl (shortController, hName) into restURL
    fedwiki_PostJSON rawJSON, restURL
    put the result into pageJSON
    put json_ToArray (pageJSON) into pageArray
@@ -93,64 +103,15 @@ end submenu_Sketches
 
 --> Dev | Menu
 -
-on menu_GraphTransporter
-   -- _SetHkeyInfo controllerHandler, stackObject
-   put LocalArray ["hKey"] into hKey
-   --
+on menu_GraphTransporter hKey
    transporter_CreateHkeyGraph hKey
 end menu_GraphTransporter
 
-on menu_DisplayDeps
-   put LocalArray ["hKey"] into hKey
+on menu_DisplayDeps hKey
    display_TransportHkeyDeps hKey
 end menu_DisplayDeps
 
-on _
-end _
-
-on menu_TransportBehaviorOveride
-   edit the script of stack "behavior_RigLocalOveride"
-end menu_TransportBehaviorOveride
-
-on menu_TestRemote mTarget, controllerHandler
-   put test_Remote (mTarget, controllerHandler)
-end menu_TestRemote
-
-on menu_TestRemoteArray mTarget, controllerHandler
-   put test_Remote (mTarget, controllerHandler) into tEncodedArray
-   put rig_DecodeArray (tEncodedArray) into tResultArray
-   display_Array tResultArray, controllerHandler
-end menu_TestRemoteArray
-
-on _
-end _
-
-on menu_DisplayTestUrls
-   go to stack "Transporter Drop Urls"
-end menu_DisplayTestUrls
-
-on menu_ListShortStackFiles hKey
-   hKey_Deconstruct hKey, hName, hType, hObject, hNum
-   put the dep_StackNames of hObject into sNames
-   --
-   put stack_ConvertNamesToShortPaths (stackNames, badNames) into shortFiles
-   --
-   put shortFiles & CR & CR & badStackNames
-end menu_ListShortStackFiles
-
-on _
-end _
-
-on menu_SetDroppedUrl
-   put scriptEditor_Object() into cardObject
-   put lcw_Ask ("Enter a vlue for the droppedURL...") into droppedURL
-   set the fedwiki_DroppedURL of cardObject to droppedURL
-end menu_SetDroppedUrl
-
-on _
-end _
-
-on menu_CreateHandlerGraph hKey, someBoolean
+on menu_CreateHandlerGraph hKey
    hkey_Deconstruct hKey, hName, hType, hObject, hNum
    put the project_Name of hObject into projectName
    
@@ -165,23 +126,23 @@ on menu_CreateHandlerGraph hKey, someBoolean
    finder_Reveal imageFile
 end menu_CreateHandlerGraph
 
+on _
+end _
+
+on menu_RigLocalOverideBehavior
+   edit the script of stack "behavior_RigLocalOveride"
+end menu_RigLocalOverideBehavior
+
 
 --> Deps
 -
-function test_Remote mTarget, controllerHandler
-   put the displayed_ControllerName of mTarget into controllerName
-   put rig_ConstructControllerUrl (controllerName, controllerHandler) into restURL
-   put url restURL into someResult
-   return someResult
-end test_Remote
-
-function rig_ConstructControllerUrl controllerName, shortControllerFile
+function rig_ConstructControllerUrl shortController, shortControllerFile
    set the itemdelimiter to "."
    put item 1 of shortControllerFile into restPath
    put "https://" & server_GetURL() & "/" into restURL
    
    set the itemdelimiter to "."
-   put item 1 of controllerName after restURL
+   put item 1 of shortController after restURL
    
    switch restPath
       case empty
@@ -192,12 +153,6 @@ function rig_ConstructControllerUrl controllerName, shortControllerFile
          return restURL
    end switch
 end rig_ConstructControllerUrl
-
-function _DiplayView
-   put server_GetURL() into serverURL
-   put display_FindView ("Stack Libraries", serverURL) into displayView
-   return displayView
-end _DiplayView
 
 private command hkey_CreateAndDisplayDeps hkey, pProjectName, pClusterBoolean
    set the cursor to watch

@@ -28,6 +28,23 @@ getprop menu_Target [mTitlePath]
    return scriptObject
 end menu_Target
 
+getprop setTemporaryBehavior_Param [scriptObject]
+   put rig_GetOveride() into someBoolean
+   return someBoolean
+end setTemporaryBehavior_Param
+
+getprop setTemporaryBehavior_Params
+   return "true,false"
+end setTemporaryBehavior_Params
+
+getprop switchServer_Param
+   return server_GetURL()
+end switchServer_Param
+
+getprop switchServer_Params
+   return LocalArray ["serverURLs"]
+end switchServer_Params
+
 getprop disabled_UploadController [scriptObject]
    -- put the short_ControllerFile of scriptObject into shortControllerFile
    put the project_Name of scriptObject into projectName
@@ -62,15 +79,10 @@ on insert_HeaderMenu
    return "Global | ScriptEditor | Header | Menu"
 end insert_HeaderMenu
 
-on menu_ScriptTools sObject
-   display_Script sObject
-end menu_ScriptTools
-
 on _
 end _
 
 on menu_DisplayTransporterDeps sObject
-   -- transport_CheckObjectDeps sObject
    display_TransportObjectDeps sObject
 end menu_DisplayTransporterDeps
 
@@ -106,7 +118,7 @@ on menu_TestTransporterGraphs sObject
       display_Array callObjectArray, "callObjectArray"
    else
       breakpoint
-      put rev_TopScriptEditor() into sEditor
+      put scriptEditor_GetTop() into sEditor
       lcw_Answer ("Tested tranporter" && sObject), sEditor
    end if
 end menu_TestTransporterGraphs
@@ -141,7 +153,7 @@ end menu_UploadController
 on menu_UploadStackLibrary scriptObject
    put the stack_Name of scriptObject into stackName
    put merge ("Do you want to save the stack library '[[stackName]]' to rest.livecode.world?") into someQuestion
-   put rev_TopScriptEditor() into stackObject
+   put scriptEditor_GetTop() into stackObject
    dispatch "lcw_AnswerSheet" to stackObject with someQuestion
    
    rig_StoreStack stackName
@@ -178,6 +190,10 @@ end menu_RevigniterHelp
 on _
 end _
 
+on menu_ScriptTools sObject
+   display_Script sObject
+end menu_ScriptTools
+
 on menu_DisplayGitStatus scriptObject
    display_GitStatus scriptObject
 end menu_DisplayGitStatus
@@ -194,27 +210,6 @@ on submenu_Dev
 end submenu_Dev
 
 
---> Global | ScriptEditor | Recent | Revigniter | Menu | Props
--
-getprop temporary_Behavior [scriptObject] 
-   put the behavior of scriptObject into bObject
-   put bObject is not empty into someBoolean
-   return someBoolean
-end temporary_Behavior
-
-getprop remote_OrLocals
-   return "local,remote"
-end remote_OrLocals
-
-getprop server_URL
-   return server_GetURL()
-end server_URL
-
-getprop server_URLs
-   return LocalArray ["serverURLs"]
-end server_URLs
-
-
 --> Dev | Menu
 -
 on menu_EditTemporaryBehavior scriptObject
@@ -222,7 +217,7 @@ on menu_EditTemporaryBehavior scriptObject
 end menu_EditTemporaryBehavior
 
 on menu_SetTemporaryBehavior scriptObject, someBoolean
-   rig_SetOveride someBoolean, scriptObject
+   rig_SetOveride someBoolean
 end menu_SetTemporaryBehavior
 
 on _
@@ -274,4 +269,3 @@ on menu_ForceLoadServerArray
    
    server_SetURL "rest.livecode.world"
 end menu_ForceLoadServerArray
-

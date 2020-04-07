@@ -76,7 +76,7 @@ getprop rig_ControllerHkeys
    --
    put the rig_ControllerHandlers of the target into hNames
    repeat for each item hName in hNames
-      put hKeyLine_FromTripple (hName, "M", hObject) into hKeyLine
+      put hKeyLine_Construct (hName, "M", hObject) into hKeyLine
       put hKeyLine & CR after hkeys
    end repeat
    delete char -1 of hkeys
@@ -171,12 +171,8 @@ command rig_CreateLocalControllerStack controllerScript, shortController, pContr
       save stack shortController
    end if
    --
-   if exists (stack "behavior_RigLocalOveride") then
-      put the name of stack scriptStackFile into sObject
-      rig_SetOveride someBoolean, sObject
-   else
-      breakpoint
-   end if
+   rig_SetOveride true
+   --
    return scriptStackFile
 end rig_CreateLocalControllerStack
 

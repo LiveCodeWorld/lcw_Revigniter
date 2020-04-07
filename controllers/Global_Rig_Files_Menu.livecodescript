@@ -4,7 +4,71 @@
 license: GPLv3
 name: Global_Rig_Files_Menu
 type: controller
-version: 0.1
+target: stackObject
+version: 0.2
+
+
+--> Menu | Init
+-
+getprop menu_Target [tObject]
+   put the title_Text of tObject into stackName
+   if exists (stack stackName) then
+      put the name of stack stackName into stackObject
+      return stackObject
+   else
+      return empty
+   end if
+end menu_Target
+
+getprop menu_Target [stackObject]
+   if word 1 of stackObject = "stack" and exists (stackObject) then
+      return true
+   else
+      return false
+   end if
+end menu_Target
+
+getprop switchServer_Param
+   return server_GetURL()
+end switchServer_Param
+
+getprop switchServer_Params
+   put server_FetchPrefArray() into serverArray
+   return keys (serverArray)
+end switchServer_Params
+
+getprop fetchRigScript_Params
+   put rig_ListControllerFiles() into shortControllerFiles
+   return shortControllerFiles
+end fetchRigScript_Params
+
+getprop disabled_RevealLocalControllerFolder
+   put rig_FetchLocalControllerFolder() into someFolder
+   if there is a folder someFolder then
+      return false
+   else
+      return true
+   end if
+end disabled_RevealLocalControllerFolder
+
+getprop disabled_CheckRemoteStack [stackObject]
+   put the short name of stackObject into shortControllerFile
+   set the itemdelimiter to "."
+   if item -1 of shortControllerFile = "lc" then
+      -- let's assume it is a rig controller script and not a stack
+      return true
+   else
+      return false
+   end if
+end disabled_CheckRemoteStack
+
+getprop disabled_UploadLocalStack
+   return LocalArray ["stackExists"] is false
+end disabled_UploadLocalStack
+
+getprop disabled_CheckRemoteStack
+   return LocalArray ["stackExists"] is false
+end disabled_CheckRemoteStack
 
 
 --> Global | Rig | Files | Menu
@@ -41,7 +105,6 @@ end menu_DisplayRigScript
 
 on menu_UploadRigScript scriptObject
    put the short_ControllerFile of scriptObject into shortController
-   -- put the server_TLD of cardObject into serverTLD
    --
    put rig_ConstructControllerScript (scriptObject, shortController) into rigScript
    
@@ -66,15 +129,6 @@ on menu_UpoadControllerAndStacks scriptObject
    
    server_UploadStacks editedScriptOnlyLibraryNames
 end menu_UpoadControllerAndStacks
-
--- on menu_UpoadController scriptObject
-breakpoint
--- rig_ConstructAndSaveController scriptObject, shortControllerFile, serverStackFiles
-
-put LocalArray ["server_StackFiles"] into serverStackFiles
--- rig_Upload serverStackFiles
--- server_UploadStacks stackNames
-end menu_UpoadController
 
 on _
 end _
@@ -117,15 +171,6 @@ on menu_RevealLocalControllerFolder
    put rig_FetchLocalControllerFolder() into someFolder
    finder_Reveal someFolder
 end menu_RevealLocalControllerFolder
-
--- on menu_ChooseLocalRigFolder mTarget
-answer folder "Choose a local revIgniter folder..."
-put it into rigFolder
-if rigFolder is empty then exit to top
-
-set the displayed_RigFolder of mTarget to rigFolder
-put the result into rigCoderArray
-end menu_ChooseLocalRigFolder
 
 on _
 end _
@@ -187,63 +232,6 @@ on menu_DeleteServerStack serverStackFile
    rig_DeleteStack serverStackFile
    refresh
 end menu_DeleteServerStack
-
-
---> Global | Rig | Files | Menu | Props
--
-getprop server_URL
-   return server_GetURL()
-end server_URL
-
-getprop server_URLs
-   put server_FetchPrefArray() into serverArray
-   return keys (serverArray)
-end server_URLs
-
-getprop rig_Controllers
-   -- return "mediawiki.lc,fedwiki.lc,test.lc"
-   put rig_ListControllerFiles() into shortControllerFiles
-   return shortControllerFiles
-end rig_Controllers
-
-
---> Global | Rig | Files | Menu | Disabled
--
-getprop disabled_RevealLocalControllerFolder
-   put rig_FetchLocalControllerFolder() into someFolder
-   if there is a folder someFolder then
-      return false
-   else
-      return true
-   end if
-end disabled_RevealLocalControllerFolder
-
-getprop disabled_CheckRemoteStack [stackObject]
-   put the short name of stackObject into shortControllerFile
-   set the itemdelimiter to "."
-   if item -1 of shortControllerFile = "lc" then
-      -- let's assume it is a rig controller script and not a stack
-      return true
-   else
-      return false
-   end if
-end disabled_CheckRemoteStack
-
-getprop disabled_UploadLocalStack
-   return LocalArray ["stackExists"] is false
-end disabled_UploadLocalStack
-
-getprop disabled_CheckRemoteStack
-   return LocalArray ["stackExists"] is false
-end disabled_CheckRemoteStack
-
-
---> Menu | Props
--
--- getprop menu_CheckTarget [mTarget]
-   put word 1 of mTarget = "stack" into isStack
-   return isStack
-end menu_CheckTarget
 
 
 --> Deps
