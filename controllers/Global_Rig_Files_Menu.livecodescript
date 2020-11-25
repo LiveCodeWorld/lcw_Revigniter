@@ -1,10 +1,10 @@
-﻿script "Global_Rig_Files_Menu"
+﻿script "Global | Rig | Files | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_Rig_Files_Menu
-type: controller
+name: Global | Rig | Files | Menu
 target: stackObject
+type: controller
 version: 0.2
 
 

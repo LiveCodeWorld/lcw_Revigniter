@@ -1,8 +1,8 @@
-﻿script "Global_Revigniter_Menu"
+﻿script "Global | Revigniter | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_Revigniter_Menu
+name: Global | Revigniter | Menu
 type: controller
 version: 0.2
 
@@ -10,7 +10,7 @@ version: 0.2
 --> Global | Revigniter | Menu
 -
 on menu_DroppedUrls
-   go to stack "Transporter Drop Urls"   
+   display_TransportURLs
 end menu_DroppedUrls
 
 on menu_DisplayRigControllers
@@ -80,4 +80,3 @@ getprop m_Titles
    put ide_ListShortMenuTitles ("Recent") into shortNames
    return shortNames
 end m_Titles
-

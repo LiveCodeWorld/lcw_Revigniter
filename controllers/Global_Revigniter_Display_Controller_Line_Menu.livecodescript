@@ -1,16 +1,15 @@
-﻿script "Global_Revigniter_Display_Controller_Line_Menu"
+﻿script "Global | Revigniter | Display | Controller | Line | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_Revigniter_Display_Controller_Line_Menu
+name: Global | Revigniter | Display | Controller | Line | Menu
 type: controller
 version: 0.2
-
-local LocalArray
 
 /*
 This menu is for the array based display of revIgniter controllers.
 */
+
 
 --> Global | Revigniter | Display | Controller | Line | Menu
 -
@@ -20,12 +19,18 @@ on menu_DownloadController displayView
    rig_EditController shortFile
 end menu_DownloadController
 
+on menu_LaunchGithub displayView
+   put _ControllerFile (displayView) into shortFile
+   -- put github_ConstructLaunchUrl (shortFile)
+   github_LaunchStack shortFile
+end menu_LaunchGithub
+
 on _
 end _
 
-on menu_LaunchGist arrayView
-   put item 1 of the selected_Path of arrayView into shortGistFile
-   gist_Launch shortGistFile
+on menu_LaunchGist displayView
+   put _ControllerFile (displayView) into shortFile
+   gist_Launch shortFile
 end menu_LaunchGist
 
 on menu_SaveControllerAsGist displayView
@@ -91,7 +96,7 @@ private command _Refresh displayView
          set the displayed_Data of displayView to controllerPathArray
          break
       default
-         display_RigControllers displayView
+         display_Transporters displayView
    end switch
 end _Refresh
 
@@ -106,5 +111,3 @@ private function _ControllerFile displayView
    end switch
    return shortControllerFile
 end _ControllerFile
-
-

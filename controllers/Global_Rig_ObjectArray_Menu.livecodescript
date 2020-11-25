@@ -1,8 +1,8 @@
-﻿script "Global_Rig_ObjectArray_Menu"
+﻿script "Global | Rig | ObjectArray | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_Rig_ObjectArray_Menu
+name: Global | Rig | ObjectArray | Menu
 type: controller
 version: 0.1
 

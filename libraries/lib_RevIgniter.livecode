@@ -16,6 +16,90 @@ The code to access local copies of files should be in "lib_RevigniterTools"
 */
 
 
+--> Rig | Model
+-
+command rig_EditController shortFile   
+   rig_DownloadScriptAndCreateStack shortFile
+   put the result into scriptStackFile
+   edit the script of stack scriptStackFile
+   ide_SetScriptEditorTitles "Revigniter"
+   return scriptStackFile
+end rig_EditController
+
+command rig_DeleteController shortControllerFile, serverTLD
+   rig_CheckFileForDeletion shortControllerFile, serverTLD
+   put the result into serverFilePath
+   --
+   put server_GetURL() into remoteDomain
+   put server_GetSshUser() into sshUser
+   ssh_DeleteFile sshUser, remoteDomain, serverFilePath
+   put the result into shellResult
+   return shellResult
+end rig_DeleteController
+
+function rig_FetchController shortFile, pServerURL
+   put rig_GetFolder ("controllers") & shortFile into somePath
+   put rig_FetchFile (somePath, pServerURL) into someData
+   return someData
+end rig_FetchController
+
+function rig_FetchStack shortFile, pServerURL
+   put rig_GetFolder ("stacks") & shortFile into somePath
+   put rig_FetchFile (somePath, pServerURL) into someData
+   return someData
+end rig_FetchStack
+
+function rig_FetchSystemHelper shortFile, pServerURL
+   put rig_GetFolder ("helpers") & shortFile into somePath
+   put rig_FetchFile (somePath, pServerURL) into someData
+   return someData
+end rig_FetchSystemHelper
+
+function rig_FetchProjectFile shortFile, shortFolder, pServerURL  
+   put rig_GetFolder ("helpers") & shortFile into somePath
+   put rig_FetchFile (somePath, pServerURL) into someData
+   return someData
+end rig_FetchProjectFile
+
+function rig_FetchSystemFile shortStackFile, shortFolder, pServerURL  
+   put rig_GetSystemFolder (shortFolder) & shortStackFile into somePath
+   put rig_FetchFile (somePath, pServerURL) into someData
+   return someData
+end rig_FetchSystemFile
+
+command rig_StoreController shortFile, rigScript
+   put rig_ApplicationPath ("controllers/" & shortFile) into somePath
+   rig_StoreData rigScript, somePath
+   put the result into shellResult
+   return shellResult
+end rig_StoreController
+
+command rig_StoreStacks stackNames
+   repeat for each line stackName in stackNames
+      set the cursor to busy
+      rig_StoreStack stackName
+   end repeat
+end rig_StoreStacks
+
+command rig_StoreStack stackName
+   if exists (stack stackName) is false then
+      return merge ("error, stack '[[stackName]]' does not exist")
+   end if
+   
+   put the name of stack stackName into stackObject
+   set the behavior of stack stackName to empty -- hack to prevent missing behaviors on server
+   save stackObject
+   
+   put the filename of stack stackName into localFile
+   set the itemdelimiter to slash
+   put item -1 of localFile into shortFile
+   put rig_GetFolder ("stacks") & shortFile into somePath
+   
+   rig_UploadLocalFile localFile, somePath
+   return the result
+end rig_StoreStack
+
+
 --> Working on
 -
 function rig_GetOveride
@@ -33,15 +117,6 @@ command rig_SetOveride someBoolean
       remove the script of stack "behavior_RigLocalOveride" from front
    end if
 end rig_SetOveride
-
-
-command rig_EditController shortFile   
-   rig_DownloadScriptAndCreateStack shortFile
-   put the result into scriptStackFile
-   edit the script of stack scriptStackFile
-   ide_SetScriptEditorTitles "Revigniter"
-   return scriptStackFile
-end rig_EditController
 
 function rig_GetServerApplicationFolder pServerURL
    put server_GetProperty ("rigApplicationFolder", pServerURL) into rigApplicationFolder
@@ -129,7 +204,7 @@ function rig_FetchFile somePath, pServerURL
 end rig_FetchFile
 
 command rig_StoreStackData shortFile, stackData
-   put rig_ApplicationPath ("stacks/" & shortFile) into somePath
+   -- put rig_ApplicationPath ("stacks/" & shortFile) into somePath
    put rig_GetFolder ("stacks") & shortFile into somePath
    rig_StoreData stackData, somePath
    return the result
@@ -211,16 +286,22 @@ command rig_CheckFiles shortFiles, pIndexView
       display_Spin shortFile, pIndexView
       put the result into selectedLineNum
       --
-      rig_CheckFile shortFile, pIndexView
-      put the result into changedHow -- could add up
+      rig_CheckAndSaveFile shortFile, pIndexView
+      put the result into changedWords
+      put word 1 of changedWords into changedHow
+      put word 2 of changedWords into lineNum
+      put lineNum into resultArray [changedHow][shortFile]
    end repeat
    set the hilited_lines of pIndexView to empty
+   return resultArray
 end rig_CheckFiles
 
-command rig_CheckFile shortFile, pIndexView
+command rig_CheckAndSaveFile shortFile, pIndexView
    put rig_FetchStack (shortFile) into remoteStackData
    put stack_ExtractScriptOnlyName (remoteStackData) into stackName
    if exists (stack stackName) then
+      save stack stackName
+      --
       put the stack_Data of stack stackName into localStackData
       if word 1 to -1 of localStackData = word 1 to -1 of remoteStackData then
          -- for some reason local stacks have an additional space at the end
@@ -232,18 +313,18 @@ command rig_CheckFile shortFile, pIndexView
       else
          if exists (pIndexView) then
             put the line_Number [shortFile] of pIndexView into lineNum
-            set the line_Colour [lineNum] of pIndexView to blue
+            set the line_Colour [lineNum] of pIndexView to "blue"
          end if
          return "changed" && lineNum
       end if
    else
       if exists (pIndexView) then
          put the line_Number [shortFile] of pIndexView into lineNum
-         set the line_Colour [lineNum] of pIndexView to red
+         set the line_Colour [lineNum] of pIndexView to "red"
       end if
       return "missing" && lineNum
    end if
-end rig_CheckFile
+end rig_CheckAndSaveFile
 
 
 --> Rig | Model
@@ -346,7 +427,7 @@ end rig_GetFolder
 -
 function rig_StackPath shortPath
    put rig_GetApplicationFolder() into rigApplicationFolder
-   put someFolder & shortPath into serverStackPath
+   put rigApplicationFolder & shortPath into serverStackPath
    return serverStackPath
 end rig_StackPath
 
@@ -364,17 +445,6 @@ end rig_ApplicationPath
 
 --> Rig | Delete
 -
-command rig_DeleteController shortControllerFile, serverTLD
-   rig_CheckFileForDeletion shortControllerFile, serverTLD
-   put the result into serverFilePath
-   --
-   put server_GetURL() into remoteDomain
-   put server_GetSshUser() into sshUser
-   ssh_DeleteFile sshUser, remoteDomain, serverFilePath
-   put the result into shellResult
-   return shellResult
-end rig_DeleteController
-
 command rig_CheckFileForDeletion shortControllerFile, serverTLD
    -- here we do as many checks as we can
    put server_GetURL() into remoteDomain
@@ -389,19 +459,19 @@ command rig_CheckFileForDeletion shortControllerFile, serverTLD
    switch
       case sshUser = "root"
          put merge ("Not advisable to use root user to delete files!") into someComment
-         lcw_WarnAndExit someComment
+         lcw_AnswerWarning someComment
       case serverTLD is not serverTLD
          put merge ("Requested domain [[serverTLD]]does not match loaded domain [[remoteDomain]].") into someComment
-         lcw_WarnAndExit someComment
+         lcw_AnswerWarning someComment
       case fileArray ["isFolder"] is true
          put merge ("Did not delete folder from [[remoteDomain]]. rig_DeleteStack does not allow deletion of folders.") into someComment
-         lcw_WarnAndExit someComment
+         lcw_AnswerWarning someComment
       case fileArray ["file"] is empty
          put merge ("Did not delete file [[shortFile]] from [[remoteDomain]]. It does not exist.") into someComment
-         lcw_WarnAndExit someComment
+         lcw_AnswerWarning someComment
       case fileArray ["fileExtension"] is not among the items of "lc,livecode,rev,livecodescript"
          put merge ("Did not delete file [[shortFile]] from [[remoteDomain]]. It was not a stack.") into someComment
-         lcw_WarnAndExit someComment
+         lcw_AnswerWarning someComment
       default
          return serverFilePath -- it's a livecode file
    end switch
@@ -622,74 +692,6 @@ command rig_CleanHandlerNames @someContent
    put "\n" after someReg
    put word 1 to -1 of replaceText (someContent, someReg, empty) into someContent
 end rig_CleanHandlerNames
-
-
---> Rig | Fetch
--
-function rig_FetchController shortFile, pServerURL
-   put rig_GetFolder ("controllers") & shortFile into somePath
-   put rig_FetchFile (somePath, pServerURL) into someData
-   return someData
-end rig_FetchController
-
-function rig_FetchStack shortFile, pServerURL
-   put rig_GetFolder ("stacks") & shortFile into somePath
-   put rig_FetchFile (somePath, pServerURL) into someData
-   return someData
-end rig_FetchStack
-
-function rig_FetchSystemHelper shortFile, pServerURL
-   put rig_GetFolder ("helpers") & shortFile into somePath
-   put rig_FetchFile (somePath, pServerURL) into someData
-   return someData
-end rig_FetchSystemHelper
-
-function rig_FetchProjectFile shortFile, shortFolder, pServerURL  
-   put rig_GetFolder ("helpers") & shortFile into somePath
-   put rig_FetchFile (somePath, pServerURL) into someData
-   return someData
-end rig_FetchProjectFile
-
-function rig_FetchSystemFile shortStackFile, shortFolder, pServerURL  
-   put rig_GetSystemFolder (shortFolder) & shortStackFile into somePath
-   put rig_FetchFile (somePath, pServerURL) into someData
-   return someData
-end rig_FetchSystemFile
-
-
---> Rig | Store
--
-command rig_StoreController shortFile, rigScript
-   put rig_ApplicationPath ("controllers/" & shortFile) into somePath
-   rig_StoreData rigScript, somePath
-   put the result into shellResult
-   return shellResult
-end rig_StoreController
-
-command rig_StoreStacks stackNames
-   repeat for each line stackName in stackNames
-      set the cursor to busy
-      rig_StoreStack stackName
-   end repeat
-end rig_StoreStacks
-
-command rig_StoreStack stackName
-   if exists (stack stackName) is false then
-      return merge ("error, stack '[[stackName]]' does not exist")
-   end if
-   
-   put the name of stack stackName into stackObject
-   set the behavior of stack stackName to empty -- hack to prevent missing behaviors on server
-   save stackObject
-   
-   put the filename of stack stackName into localFile
-   set the itemdelimiter to slash
-   put item -1 of localFile into shortFile
-   put rig_GetFolder ("stacks") & shortFile into somePath
-   
-   rig_UploadLocalFile localFile, somePath
-   return the result
-end rig_StoreStack
 
 
 --> Server | Remote | Scripts

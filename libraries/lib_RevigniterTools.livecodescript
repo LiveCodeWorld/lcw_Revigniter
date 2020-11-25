@@ -24,6 +24,9 @@ problems regarding duplication of files. Instead we access local stack libraries
 
 --> Working on
 -
+
+--> Rig
+-
 command rig_SetLocalControllerFolder @controllerFolder
    -- utility
    if controllerFolder is empty then

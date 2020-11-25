@@ -1,15 +1,14 @@
-﻿script "Global_RevIgniter_Remote_Menu"
+﻿script "Global | RevIgniter | Remote | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_revIgniter_Remote_Menu
-type: controller
+name: Global | RevIgniter | Remote | Menu
 target: hKey
+type: controller
 version: 0.4
 
-/*
-This menu is used by the scripteditor handler list field when in rig mode.
-*/
+/*This menu is used by the scripteditor handler list field when in rig mode.*/
+
 
 --> Working on
 -
@@ -17,11 +16,10 @@ command _SetHkeyInfo @hName, @rigStackObject, @shortController
    -- simplify and use scriptEditor_GetHkey() (mTarget)
    put scriptEditor_GetHkeyLine() into hKeyLine
    hkeyLine_Deconstruct hKeyLine, hName, hType, rigStackObject
-   --
    put scriptEditor_Object() into rigStackObject
-   put the short name of rigStackObject into shortController
    --
-   put hKeyLine_Construct(hName, hType, rigStackObject) into hkey
+   put the short name of rigStackObject into shortController
+   put hKeyLine_Construct (hName, hType, rigStackObject) into hkey
    return hkey
 end _SetHkeyInfo
 
@@ -76,16 +74,22 @@ end menu_TestLocalTransporter
 on menu_TestRemoteTransport
    _SetHkeyInfo hName, rigStackObject, shortController
    --
-   put the test_RawJSON of rigStackObject into rawJSON
+   put the transporter_RawJSON of rigStackObject into rawJSON
    if rawJSON is empty then
-      put the mock_DropJson of stack "Transporter Drop Urls" into rawJSON
+      put transport_GetMockRawJson() into rawJSON
    end if
    
    put rig_ConstructControllerUrl (shortController, hName) into restURL
    fedwiki_PostJSON rawJSON, restURL
    put the result into pageJSON
-   put json_ToArray (pageJSON) into pageArray
+   --
+   if pageJSON is empty then
+      display_DebugHistory "menu_TestRemoteTransport"
+      lcw_AnswerWarning "No josn returned!"
+   end if
    
+   -- got some JSON
+   put json_ToArray (pageJSON) into pageArray
    if pageArray is an array then
       display_Array pageArray
    else
@@ -96,13 +100,20 @@ end menu_TestRemoteTransport
 on _
 end _
 
-on submenu_Sketches
+on submenu_Dev
    return "Dev | Menu"
-end submenu_Sketches
+end submenu_Dev
 
 
 --> Dev | Menu
 -
+on menu_HandlerListFieldBehavior
+   edit the script of stack "behavior_IdeHandlerListField"
+end menu_HandlerListFieldBehavior
+
+on _
+end _
+
 on menu_GraphTransporter hKey
    transporter_CreateHkeyGraph hKey
 end menu_GraphTransporter

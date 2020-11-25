@@ -1,8 +1,8 @@
-﻿script "Global_Rig_ObjectArray_Line_Menu"
+﻿script "Global | Rig | ObjectArray | Line | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_Rig_ObjectArray_Line_Menu
+name: Global | Rig | ObjectArray | Line | Menu
 type: controller
 version: 0.1
 
@@ -30,5 +30,3 @@ end menu_FindMissing
 
 --> Global | Rig | ObjectArray | Line | Menu | Disabled
 -
-
-

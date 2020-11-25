@@ -1,10 +1,10 @@
-﻿script "Global_ScriptEditor_Recent_Revigniter_Menu"
+﻿script "Global | ScriptEditor | Recent | Revigniter | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_ScriptEditor_Recent_Revigniter_Menu
-type: controller
+name: Global | ScriptEditor | Recent | Revigniter | Menu
 target: scriptObject
+type: controller
 version: 0.4
 
 
@@ -12,65 +12,85 @@ version: 0.4
 -
 local LocalArray
 
-on menu_Init
-   put LocalArray ["serverArray"] into serverArray
-   if serverArray is not an array then
-      put server_FetchPrefArray() into serverArray
-      put serverArray into LocalArray ["serverArray"]
-      put keys (serverArray) into LocalArray ["serverURLs"]
-      
-      server_SetURL "rest.livecode.world"
-   end if
-end menu_Init
-
-getprop menu_Target [mTitlePath]
-   put scriptEditor_Object() into scriptObject
-   return scriptObject
+getprop menu_Target [tObject]
+   _InitServerArray
+   --
+   put scriptEditor_Object() into sObject
+   put the script_Metadata ["type"] of sObject into sType
+   --
+   put the project_Name of sObject into projectName
+   put env_ConstructProjectFolder ("lcw_Controllers") into transportFolder
+   put the filename of sObject into sFile
+   --
+   put sType into LocalArray ["sType"]
+   put projectName into LocalArray ["projectName"]
+   --
+   get transportFolder & "stacks/"
+   put sFile begins with it into LocalArray ["isTransport"]
+   --
+   put LocalArray ["rigShortStackFiles"] into rigShortStackFiles
+   set the itemdelimiter to slash
+   put item -1 of sFile is among the lines of rigShortStackFiles into LocalArray ["isTransportLib"]
+   --
+   return sObject
 end menu_Target
 
-getprop setTemporaryBehavior_Param [scriptObject]
-   put rig_GetOveride() into someBoolean
-   return someBoolean
-end setTemporaryBehavior_Param
-
-getprop setTemporaryBehavior_Params
-   return "true,false"
-end setTemporaryBehavior_Params
-
-getprop switchServer_Param
-   return server_GetURL()
-end switchServer_Param
-
-getprop switchServer_Params
-   return LocalArray ["serverURLs"]
-end switchServer_Params
-
-getprop disabled_UploadController [scriptObject]
-   -- put the short_ControllerFile of scriptObject into shortControllerFile
-   put the project_Name of scriptObject into projectName
-   if projectName = "lcw_Controllers" then
-      put the stack_Name of scriptObject into shortControllerFile
-      if shortControllerFile ends with ".lc" then
-         return false
-      else
-         return true
-      end if
+getprop disabled_UploadStackLibrary [sObject]
+   if LocalArray ["isTransportLib"] is true then
+      return false
    else
       return "delete"
    end if
-end disabled_UploadController
-
-getprop disabled_UploadStackLibrary [scriptObject]
-   put the script_Metadata ["type"] of scriptObject into scriptType
+   
+   put LocalArray ["sType"] into sType
    switch
-      case scriptType contains "library"
+      case sType contains "library"
          return false
-      case scriptType = "model"
+      case sType = "model"
          return false
       default
          return "delete"
    end switch
 end disabled_UploadStackLibrary
+
+private command _InitServerArray
+   put LocalArray ["serverArray"] into serverArray
+   if serverArray is not an array then
+      put server_FetchPrefArray() into serverArray
+      put serverArray into LocalArray ["serverArray"]
+      put keys (serverArray) into LocalArray ["serverURLs"]
+      server_SetURL "rest.livecode.world"
+   end if
+   
+   if LocalArray ["rigShortStackFiles"] is empty then
+      put rig_ListStackFiles() into LocalArray ["rigShortStackFiles"]
+      -- put rig_ListControllerFiles() into LocalArray ["rigShortControllerFiles"]
+   end if
+end _InitServerArray
+
+getprop disabled_UploadTransport
+   if LocalArray ["isTransport"] is true then
+      return false
+   else
+      return "delete"
+   end if
+end disabled_UploadTransport
+
+getprop disabled_TransportOnGithub
+   if LocalArray ["isTransport"] is true then
+      return false
+   else
+      return true
+   end if
+end disabled_TransportOnGithub
+
+getprop disabled_LibraryOnGithub
+   if LocalArray ["isTransportLib"] is true then
+      return false
+   else
+      return true
+   end if
+end disabled_LibraryOnGithub
 
 
 --> Global | ScriptEditor | Recent | Revigniter | Menu
@@ -82,79 +102,23 @@ end insert_HeaderMenu
 on _
 end _
 
-on menu_DisplayTransporterDeps sObject
-   display_TransportObjectDeps sObject
-end menu_DisplayTransporterDeps
-
-on menu_TestTransporterGraphs sObject
-   put revRuggedID (sObject) into sObject
-   
-   local foundHkeys, stillMissing
-   put transport_ListMissingHkeys (sObject) into missingHkeys
-   hkey_SetFound missingHkeys, foundHkeys, stillMissing
-   put hkey_ListObjects (foundHkeys) into extraObjects
-   --
-   transport_CollectCalls sObject, callObjectArray, missingArray, revIgniterArray
-   put the result into depStacks
-   --
-   line_Add extraObjects, depStacks
-   
-   put stack_ConvertToNames (depStacks) into shortNames
-   replace CR with comma in shortNames
-   sort items of shortNames
-   put the dep_StackNames of sObject into depStackNames
-   sort items of depStackNames
-   --
-   if shortNames is not depStackNames then
-      put rig_ConstructGetProp (shortNames) into newGetPropHandler
-      local pTreeMenuTitle, pLineMenuTitle
-      display_Text newGetPropHandler, "Getprop", pTreeMenuTitle, pLineMenuTitle
-   end if
-   
-   if stillMissing is not empty then
-      display_Lines stillMissing, "Still Missing"
-   end if
-   if callObjectArray is not empty then
-      display_Array callObjectArray, "callObjectArray"
-   else
-      breakpoint
-      put scriptEditor_GetTop() into sEditor
-      lcw_Answer ("Tested tranporter" && sObject), sEditor
-   end if
-end menu_TestTransporterGraphs
-
-on menu_CreateTransporterGraphs scriptObject
-   transporter_CreateGraph scriptObject, true, true
-end menu_CreateTransporterGraphs
-
-on _
-end _
-
-on menu_UploadController scriptObject
-   put the stack_Name of scriptObject into shortControllerFile
-   --
-   put the dep_StackNames of scriptObject into depStackNames
-   put stack_ConvertNamesToShortPaths (depStackNames, badNames) into depShortPaths
-   --
-   put the script_Help of scriptObject into scriptDescription
-   --
-   put rig_ConstructControllerScript (scriptObject, shortControllerFile, depShortPaths, scriptDescription) into rigScript
-   rig_StoreController shortControllerFile, rigScript
-   --
+on menu_UploadTransport scriptObject
+   transport_Upload scriptObject
    put the result into shellResult
+   --
    if shellResult contains "Permission denied" then
       put shellResult
-      dispatch "lcw_AnswerSheet" to stackObject with "Permission denied!"
+      lcw_Answer "Permission denied!", scriptObject
    else
       lcw_Notify "Uploaded controller!"
    end if
-end menu_UploadController
+end menu_UploadTransport
 
 on menu_UploadStackLibrary scriptObject
    put the stack_Name of scriptObject into stackName
    put merge ("Do you want to save the stack library '[[stackName]]' to rest.livecode.world?") into someQuestion
    put scriptEditor_GetTop() into stackObject
-   dispatch "lcw_AnswerSheet" to stackObject with someQuestion
+   lcw_Answer someQuestion, stackObject
    
    rig_StoreStack stackName
    put the result into shellResult
@@ -168,24 +132,28 @@ on menu_UploadStackLibrary scriptObject
    end if
 end menu_UploadStackLibrary
 
+on menu_ListTransportDeps sObject
+   display_TransportObjectDeps sObject
+   put the result into displayView
+   --
+   put the displayed_Data of displayView into objectArray
+   display_TransportGetpropIfNeeded sObject, objectArray
+end menu_ListTransportDeps
+
+on menu_CreateTransporterGraphs scriptObject
+   transporter_CreateGraph scriptObject, true, true
+end menu_CreateTransporterGraphs
+
 on _
 end _
 
-on menu_DroppedUrls
-   go to stack "Transporter Drop Urls"   
-end menu_DroppedUrls
+on menu_LibraryOnGithub sObject
+   
+end menu_LibraryOnGithub
 
-on menu_DisplayRigControllers
-   display_RigControllers
-end menu_DisplayRigControllers
-
-on menu_DisplayRigStackLibs
-   display_RigStackLibs
-end menu_DisplayRigStackLibs
-
-on menu_RevigniterHelp
-   launch url "https://revigniter.com/userGuide/toc.html"
-end menu_RevigniterHelp
+on menu_LibraryOnGithub sObject
+   
+end menu_LibraryOnGithub
 
 on _
 end _
@@ -194,9 +162,13 @@ on menu_ScriptTools sObject
    display_Script sObject
 end menu_ScriptTools
 
-on menu_DisplayGitStatus scriptObject
-   display_GitStatus scriptObject
+on menu_DisplayGitStatus sObject
+   display_GitStatus sObject
 end menu_DisplayGitStatus
+
+on menu_DisplayTransportLibs scriptObject
+   display_TransporterstackLibs scriptObject
+end menu_DisplayTransportLibs
 
 on _
 end _
@@ -204,6 +176,10 @@ end _
 on submenu_Ide
    return "Global | IDE | Menu"
 end submenu_Ide
+
+on submenu_SetIdeBehavior
+   return "Global | ScriptEditor | Behavior | Menu"
+end submenu_SetIdeBehavior
 
 on submenu_Dev
    return "Dev | Menu"
@@ -269,3 +245,23 @@ on menu_ForceLoadServerArray
    
    server_SetURL "rest.livecode.world"
 end menu_ForceLoadServerArray
+
+
+--> Dev | Menu | Props
+-
+getprop setTemporaryBehavior_Param [scriptObject]
+   put rig_GetOveride() into someBoolean
+   return someBoolean
+end setTemporaryBehavior_Param
+
+getprop setTemporaryBehavior_Params
+   return "true,false"
+end setTemporaryBehavior_Params
+
+getprop switchServer_Param
+   return server_GetURL()
+end switchServer_Param
+
+getprop switchServer_Params
+   return LocalArray ["serverURLs"]
+end switchServer_Params

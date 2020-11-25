@@ -4,7 +4,7 @@
 license: GPLv3
 name: behavior_RigLocalOveride
 type: behavior
-version: 0.2
+version: 0.3
 
 /*
 This library is for debuging purposes.
@@ -28,109 +28,64 @@ put the dep_ControllerLibs of scriptObject into dependencyLibs
 
 They should not be required, as removing them will allow the properties to be accessed directly 
 as they are named the same as the handler.
-
---> Fedwiki | Props
--
-getprop script_Help
-   -- where do we store the script help for a file that is not a Livecode object?
-   return "Here is some test help"
-end script_Help
-
-getprop script_Markdown
-   return "Here is some test help"
-end script_Markdown
-
-getprop dep_ControllerLibs
-   put the dep_StackNames of me into stackNames
-   put stack_ConvertNamesToShortPaths (stackNames, badNames) into shortFiles
-   return shortFiles
-end dep_ControllerLibs
-
-
---> Rig | Props | Safety
--
-getprop short_ControllerFile
-   -- put the uOPN ["shortControllerFile"] of me into shortFile
-   put the short_ControllerFile of me into shortFile
-   return shortFile
-end short_ControllerFile
-
-setprop short_ControllerFile shortFile
-   --set the uOPN ["shortControllerFile"] of me to shortFile
-   set the short_ControllerFile of me to shortFile
-   return the long id of me
-end short_ControllerFile
-
-getprop server_TLD
-   -- put the uOPN ["server_TLD"] of me into topLevelDomain
-   put the server_TLD of me into topLevelDomain
-   return topLevelDomain
-end server_TLD
-
-setprop server_TLD topLevelDomain
-   --set the uOPN ["server_TLD"] of me to topLevelDomain
-   set the server_TLD of me to topLevelDomain
-   return the long id of me
-end server_TLD
-
-function secret_GetCached secretName, pArrayKey
-   if pArrayKey is empty then put SecretLabel into pArrayKey
-   --
-   put SecretArray [pArrayKey][secretName] into someSecret
-   if someSecret is not empty then return someSecret -- cached
-   
-   put secret_Get (secretName, pArrayKey) into someSecret
-   put someSecret into SecretArray [pArrayKey][secretName]
-   return someSecret
-end secret_GetCached
 */
 
 
---> Model | Secret | Override
+--> Working on
 -
-function secret_Get secretName, pArrayKey
+
+
+--> Fedwiki
+-
+command fedwiki_ReturnError someValue, errorText
+   if someValue is empty then
+      put pageArray_Construct ("Error", errorText) into pageArray
+   else
+      
+   end if
+   --
+   fedwiki_ReturnPageArray pageArray
+end fedwiki_ReturnError
+
+command fedwiki_ReturnPageArray pageArray
+   display_TransportReturnPageArray pageArray
+end fedwiki_ReturnPageArray
+
+command fedwiki_ReturnJSON pageJSON
+   -- here we override the returning of pageJSON back to the Fedwiki client for local testing
+   put json_ToArray (pageJSON) into pageArray
+   --
+   display_TransportReturnPageArray pageArray, "fedwiki_ReturnJSON()"
+end fedwiki_ReturnJSON
+
+
+--> Override | Fedwiki | Get
+-
+function fedwiki_GetDroppedArray
+   -- also good to get a post from a form POST
+   fedwiki_SetRawJSON pRawJSON
+   put json_ToArray (pRawJSON) into dropArray
+   return dropArray
+end fedwiki_GetDroppedArray
+
+command fedwiki_SetRawJSON @rawJSON
    /*
-   At the moment we store secrets in the config.lc file on the server
-   and don't use specific files or database keys.
-   
-   But on the desktop we usually use a separate array file per project.
-   This is something that eventualy the server should probably use as well.
-   */
-   
-   put _ConstructShortArrayFile (pArrayKey) into shortFileFile
-   put user_GetValue (secretName, shortFileFile) into someSecret
-   return someSecret
-end secret_Get
-
-command secret_Set secretName, secretValue, pArrayKey
-   put _ConstructShortArrayFile (pArrayKey) into shortFileFile
-   user_SetValue secretName, shortFileFile, secretValue
-   put the result into modelDataFile
-   return modelDataFile
-end secret_Set
-
-
---> Private
--
-private function _ConstructShortArrayFile pArrayKey
-   -- "pinterest_Authentication.array" or "secret_Authentication.array" (default)
-   if pArrayKey is empty then put "secret" into pArrayKey
-   put tolower(pArrayKey) & "_Authentication.array" into shortFileFile
-   return shortFileFile
-end _ConstructShortArrayFile
-
-
---> Fedwiki | Overrides
--
--- command fedwiki_SetRawJSON @rawJSON
-   /*
-   -- mock up $_POST_RAW from selected display of stack "Transporter Drop Urls"
-   put the mock_DropJson of stack "Transporter Drop Urls" into rawJSON
+   -- mock up $_POST_RAW 
    put rawJSON into $_POST_RAW
    return false
    */
    
-   put the test_RawJSON of mController into rawJSON
+   -- if called from a local transporter the target should be the controller
+   put the long id of the target into controller
+   -- we could double check here it is in the downloadded tranporter folded
+   
+   -- here we can override by placing a "getprop transporter_RawJSON" handler in the tranporter code
+   put the transporter_RawJSON of controller into rawJSON
+   
+   if rawJSON is empty then
+      put transport_GetMockRawJson() into rawJSON
+   end if
+   --
    put rawJSON into $_POST_RAW
    return false
 end fedwiki_SetRawJSON
@@ -152,29 +107,3 @@ function fedwikipedia_GetPageSlug
    fedwiki_ReturnError pageSlug, "Not a Wikipedia page!"
    return pageSlug
 end fedwikipedia_GetPageSlug
-
-command fedwiki_ReturnPageArray pageArray
-   -- pageArray_StripJournal pageArray
-   put json_FromArray (pageArray) into someJSON
-   
-   display_Array pageArray, "fedwiki_ReturnPageArray()"
-   -- put someJSON -- can cause long term spinning
-end fedwiki_ReturnPageArray
-
-command fedwiki_ReturnJSON pageJSON
-   -- here we override the returning of pageJSON back to the Fedwiki client for local testing
-   if the shiftkey is "Down" then put pageJSON
-   put json_ToArray (pageJSON) into pageArray
-   display_Array pageArray, "fedwiki_ReturnJSON()"
-   -- let's test also decoding
-   put json_FromArray (pageArray) into testJSON
-   -- put testJSON -- can cause long term spinning
-end fedwiki_ReturnJSON
-
-command fedwiki_ReturnError someValue, errorText
-   if someValue is empty then
-      put pageArray_Construct ("Error", errorText) into pageArray
-      fedwiki_ReturnPageArray pageArray
-      exit to top
-   end if
-end fedwiki_ReturnError

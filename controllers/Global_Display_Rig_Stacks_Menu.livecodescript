@@ -1,14 +1,28 @@
-﻿script "Global_Display_Rig_Stacks_Menu"
+﻿script "Global | Display | Rig | Stacks | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_Display_Rig_Stacks_Menu
+name: Global | Display | Rig | Stacks | Menu
 type: controller
 version: 0.1
 
 
 --> Global | Display | Rig | Stacks | Menu
 -
+on menu_UploadBlueLibraries indexView
+   put the displayed_Index of indexView into oIndex
+   --
+   put the coloured_Lines ["0,0,255"] of indexView into blueLines
+   set the displayed_Index ["Modified Rig Stacks"] of indexView to blueLines
+   --
+   _UploadDisplayedShortFiles blueLines, indexView
+   --
+   set the displayed_Index of indexView to oIndex
+end menu_UploadBlueLibraries
+
+on _
+end _
+
 on menu_TestDisplayedStacks indexView
    put the displayed_Index of indexView into shortFiles
    rig_CheckFiles shortFiles, indexView
@@ -18,7 +32,7 @@ on menu_TestRigStacks indexView
    set the title_Text ["Stack Libraries"] of indexView to server_GetURL()
    --
    stack_SaveEdited "Save All"
-   display_RigStackLibs indexView
+   display_TransporterLibs indexView
    put the displayed_Index of indexView into shortFiles
    --
    rig_CheckFiles shortFiles, indexView
@@ -27,35 +41,8 @@ end menu_TestRigStacks
 on _
 end _
 
-on menu_UploadBlueLibraries indexView
-   put the line_Colours ["0,0,255"] of indexView into lineNums
-   put the displayed_Index of indexView into dIndex
-   --
-   repeat for each line lineNum in lineNums
-      put line lineNum of dIndex & CR after blueLines
-   end repeat
-   delete char -1 of blueLines
-   set the displayed_Index ["Modified Rig Stacks"] of indexView to blueLines
-   _UploadDisplayedShortFiles blueLines, indexView
-   --
-   set the displayed_Index of indexView to dIndex
-end menu_UploadBlueLibraries
-
--- on menu_UploadChangedLibraries indexView
-put stack_ListEditedNames() into stackNames
-
---
-set the displayed_Index ["Changed Rig Stacks"] of indexView to changedRigStackNames
-_UploadDisplayedStackNames changedRigStackNames, indexView
---
-menu_TestStacks indexView
-end menu_UploadChangedLibraries
-
-on _
-end _
-
 on menu_Refresh
-   display_RigStackLibs
+   display_TransporterLibs
 end menu_Refresh
 
 on menu_RevealLocalRepo
@@ -78,7 +65,7 @@ on menu_DisplayHkeyObjectArray indexView
    put the title_Text of indexView into hKey
    --
    put hkey_GetLinkArray (hKey) into hkeyDepArray
-   put hkeyArray_ConstructObjectArray (hkeyDepArray) into hkeyObjectArray
+   put hkeyArray_GetDepArray (hkeyDepArray) into hkeyObjectArray
    --
    put hKey,"Object Array" into dTitle
    display_Array hkeyObjectArray, dTitle

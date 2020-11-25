@@ -1,19 +1,15 @@
-﻿script "Global_ScriptEditor_List_Revigniter_Menu"
+﻿script "Global | ScriptEditor | List | Revigniter | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_ScriptEditor_List_Revigniter_Menu
+name: Global | ScriptEditor | List | Revigniter | Menu
 type: controller
 version: 0.4
 
 
---> Variables
+--> Menu | Init
 -
 local LocalArray
-
-
---> Menu | Props
--
 
 
 --> Global | ScriptEditor | List | Revigniter | Menu
@@ -47,18 +43,6 @@ end _
 on submenu_Dev
    return "Dev | Menu"
 end submenu_Dev
-
-
---> Dev | Menu | Props
--
-getprop setMenu_Param
-   return ide_ShortTitle ("List")
-end setMenu_Param
-
-getprop setMenu_Params
-   put ide_ListShortMenuTitles ("List") into shortNames
-   return shortNames
-end setMenu_Params
 
 
 --> Dev | Menu

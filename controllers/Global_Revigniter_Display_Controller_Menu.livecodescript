@@ -1,17 +1,28 @@
-﻿script "Global_Revigniter_Display_Controller_Menu"
+﻿script "Global | Revigniter | Display | Controller | Menu"
 --> MetaData
 -
 license: GPLv3
-name: Global_Revigniter_Display_Controller_Menu
+name: Global | Revigniter | Display | Controller | Menu
 type: controller
-version: 0.1
+version: 0.2
 
+
+--> Menu | Props
+-
 
 --> Global | Revigniter | Display | Controller | Menu
 -
-on menu_DisplayRigControllers
-   display_RigControllers
-end menu_DisplayRigControllers
+on menu_DisplayDroppedUrls
+   display_TransportDropper
+end menu_DisplayDroppedUrls
+
+on menu_DisplayRigStackLibs
+   display_TransporterLibs
+end menu_DisplayRigStackLibs
+
+on menu_RevigniterHelp
+   launch url "https://revigniter.com/userGuide/toc.html"
+end menu_RevigniterHelp
 
 on _
 end _
@@ -46,8 +57,8 @@ on menu_CreateNewController displayView
    put the result into shellResult
    
    if shellResult is empty then
-      lcw_AnswerSheet "Created and stored new controller on the server!"
-      display_RigControllers
+      lcw_Answer "Created and stored new controller on the server!", displayView
+      display_Transporters
       put the result into displayView
    else
       beep
@@ -56,29 +67,65 @@ on menu_CreateNewController displayView
    return displayView
 end menu_CreateNewController
 
+on _
+end _
+
+on menu_TransportGitStatus
+   -- put the git_Folder of sObject into gitCheckoutFolder
+   put env_GetFolder ("lcw_Controllers") into gitFolder
+   --
+   display_GitFolderStatus gitFolder
+end menu_TransportGitStatus
+
+on menu_RevealLocalProjects indexView
+   put env_GetRepoFolder() into repoFolder
+   --
+   finder_Reveal repoFolder
+end menu_RevealLocalProjects
+
+on _
+end _
+
+on menu_Refresh arrayView
+   display_Transporters arrayView
+end menu_Refresh
 
 on submenu_Dev
    return "Dev | Menu"
 end submenu_Dev
 
 
---> Global | Revigniter | Display | Controller | Menu | Props
--
-
---> Global | Revigniter | Display | Controller | Menu | Disabled
--
 
 --> Dev | Menu
 -
-on menu_EditViewBehavior arrayView
-   put the behavior of arrayView into bObject
-   edit the script of bObject
-end menu_EditViewBehavior
+on menu_TestTerminal
+   terminal_PasteScript "ls -la"
+   put the result
+end menu_TestTerminal
 
-on submenu_ControllerFiles
-   return "Global | Rig | Files | Menu"
-end submenu_ControllerFiles
+on menu_NewTerminalTab
+   terminal_PasteInNewTab "ls -la"
+   put the result
+end menu_NewTerminalTab
 
-on submenu_ScriptEditor
-   return "Global | ScriptEditor | Recent | Revigniter | Menu"
-end submenu_ScriptEditor
+on _
+end _
+
+on menu_TestCertificates
+   put "./tmp/certbot-auto certificates" into sCommand
+   ssh_DoRemoteShell "root", "rest.livecode.world", sCommand
+   put the result
+end menu_TestCertificates
+
+on menu_UpdateLetsEncrypt
+   put "./tmp/certbot-auto certificates" into remoteShell
+   --
+   put ssh_ConstructRemoteShell (remoteShell, "rest.livecode.world", "root")
+end menu_UpdateLetsEncrypt
+
+on _
+end _
+
+on menu_EditTransportOverride
+   edit the script of stack "behavior_RigLocalOveride"
+end menu_EditTransportOverride
