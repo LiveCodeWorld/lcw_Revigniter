@@ -16,9 +16,9 @@ on menu_DisplayDroppedUrls
    display_TransportDropper
 end menu_DisplayDroppedUrls
 
-on menu_DisplayRigStackLibs
+on menu_DisplayTransportLibs
    display_TransporterLibs
-end menu_DisplayRigStackLibs
+end menu_DisplayTransportLibs
 
 on menu_RevigniterHelp
    launch url "https://revigniter.com/userGuide/toc.html"
@@ -27,7 +27,7 @@ end menu_RevigniterHelp
 on _
 end _
 
-on menu_CreateNewController displayView
+on menu_CreateNewController
    local pControllerShortFile, pControllerFolder
    
    rig_SetLocalControllerFolder pControllerFolder
@@ -60,11 +60,11 @@ on menu_CreateNewController displayView
       lcw_Answer "Created and stored new controller on the server!", displayView
       display_Transporters
       put the result into displayView
+      return displayView
    else
       beep
       lcw_ExitAndWarn "Failed to store new controller on the server :("
    end if
-   return displayView
 end menu_CreateNewController
 
 on _
@@ -77,7 +77,7 @@ on menu_TransportGitStatus
    display_GitFolderStatus gitFolder
 end menu_TransportGitStatus
 
-on menu_RevealLocalProjects indexView
+on menu_RevealLocalProjects
    put env_GetRepoFolder() into repoFolder
    --
    finder_Reveal repoFolder
@@ -86,8 +86,8 @@ end menu_RevealLocalProjects
 on _
 end _
 
-on menu_Refresh arrayView
-   display_Transporters arrayView
+on menu_Refresh displayView
+   display_Transporters displayView
 end menu_Refresh
 
 on submenu_Dev
@@ -98,6 +98,20 @@ end submenu_Dev
 
 --> Dev | Menu
 -
+on menu_ProcessAllControllers displayView
+   put the displayed_Index of displayView into shortControllers
+   repeat for each line shortController in shortControllers
+      display_Spin shortController, displayView
+      --
+      rig_DownloadScriptAndCreateStack shortController
+      put the result into scriptStackFile
+      --
+      put the name of stack scriptStackFile into stackObject
+      transport_Upload stackObject
+      put the result into shellResult
+   end repeat
+end menu_ProcessAllControllers
+
 on menu_TestTerminal
    terminal_PasteScript "ls -la"
    put the result

@@ -21,9 +21,33 @@ end menu_DownloadController
 
 on menu_LaunchGithub displayView
    put _ControllerFile (displayView) into shortFile
-   -- put github_ConstructLaunchUrl (shortFile)
-   github_LaunchStack shortFile
+   github_LaunchTransport shortFile
 end menu_LaunchGithub
+
+on _
+end _
+
+on menu_EditLocalControllerStack displayView
+   put _ControllerFile (displayView) into shortFile
+   --
+   put rig_LocalControllerStackPath (shortFile) into stackPath
+   if exists (stack stackPath) then
+      edit the script of stack stackPath
+   else
+      put stackPath
+      put "Cannot locate stack [[shortFile]]!" into someQuestion
+      lcw_AnswerWarning someQuestion, displayView, "shortFile", shortFile
+   end if
+end menu_EditLocalControllerStack
+
+on menu_EditLocalControllerScript displayView
+   put _ControllerFile (displayView) into shortFile
+   --
+   put rig_LocalControllerScriptPath (shortFile) into scriptPath
+   --
+   finder_Reveal scriptPath
+   atom_Edit scriptPath
+end menu_EditLocalControllerScript
 
 on _
 end _

@@ -35,13 +35,15 @@ getprop menu_Target [tObject]
    return sObject
 end menu_Target
 
-getprop disabled_UploadStackLibrary [sObject]
+getprop disabled_LibraryOnGithub
    if LocalArray ["isTransportLib"] is true then
       return false
    else
-      return "delete"
+      return true
    end if
-   
+end disabled_LibraryOnGithub
+
+getprop disabled_UploadTransportLibrary [sObject]
    put LocalArray ["sType"] into sType
    switch
       case sType contains "library"
@@ -51,7 +53,7 @@ getprop disabled_UploadStackLibrary [sObject]
       default
          return "delete"
    end switch
-end disabled_UploadStackLibrary
+end disabled_UploadTransportLibrary
 
 private command _InitServerArray
    put LocalArray ["serverArray"] into serverArray
@@ -68,6 +70,22 @@ private command _InitServerArray
    end if
 end _InitServerArray
 
+getprop disabled_ListScriptDeps
+   if LocalArray ["isTransport"] is true then
+      return "delete"
+   else
+      return false
+   end if
+end disabled_ListScriptDeps
+
+getprop disabled_ListTransportDeps
+   if LocalArray ["isTransport"] is true then
+      return false
+   else
+      return "delete"
+   end if
+end disabled_ListTransportDeps
+
 getprop disabled_UploadTransport
    if LocalArray ["isTransport"] is true then
       return false
@@ -77,20 +95,22 @@ getprop disabled_UploadTransport
 end disabled_UploadTransport
 
 getprop disabled_TransportOnGithub
+   -- LocalArray ["isTransportLib"]
    if LocalArray ["isTransport"] is true then
       return false
    else
-      return true
+      return "delete"
    end if
 end disabled_TransportOnGithub
 
-getprop disabled_LibraryOnGithub
-   if LocalArray ["isTransportLib"] is true then
+getprop disabled_CreateTransporterGraphs
+   if LocalArray ["isTransport"] is true then
       return false
    else
-      return true
+      return "delete"
    end if
-end disabled_LibraryOnGithub
+end disabled_CreateTransporterGraphs
+
 
 
 --> Global | ScriptEditor | Recent | Revigniter | Menu
@@ -114,7 +134,27 @@ on menu_UploadTransport scriptObject
    end if
 end menu_UploadTransport
 
-on menu_UploadStackLibrary scriptObject
+on menu_ListTransportDeps sObject
+   display_TransportObjectDeps sObject
+   put the result into displayView
+   --
+   put the displayed_Data of displayView into objectArray
+   display_TransportGetpropIfNeeded sObject, objectArray
+end menu_ListTransportDeps
+
+on menu_CreateTransporterGraphs scriptObject
+   transporter_CreateGraph scriptObject, true, true
+end menu_CreateTransporterGraphs
+
+on menu_TransportOnGithub sObject
+   put the stack_Name of sObject into shortFile
+   github_LaunchTransport shortFile
+end menu_TransportOnGithub
+
+on _
+end _
+
+on menu_UploadTransportLibrary scriptObject
    put the stack_Name of scriptObject into stackName
    put merge ("Do you want to save the stack library '[[stackName]]' to rest.livecode.world?") into someQuestion
    put scriptEditor_GetTop() into stackObject
@@ -130,37 +170,23 @@ on menu_UploadStackLibrary scriptObject
    else
       lcw_Notify "Uploaded stack library!"
    end if
-end menu_UploadStackLibrary
+end menu_UploadTransportLibrary
 
-on menu_ListTransportDeps sObject
-   display_TransportObjectDeps sObject
-   put the result into displayView
-   --
-   put the displayed_Data of displayView into objectArray
-   display_TransportGetpropIfNeeded sObject, objectArray
-end menu_ListTransportDeps
-
-on menu_CreateTransporterGraphs scriptObject
-   transporter_CreateGraph scriptObject, true, true
-end menu_CreateTransporterGraphs
-
-on _
-end _
-
-on menu_LibraryOnGithub sObject
-   
-end menu_LibraryOnGithub
-
-on menu_LibraryOnGithub sObject
-   
-end menu_LibraryOnGithub
-
-on _
-end _
+on menu_ListScriptDeps sObject
+   display_ScriptDeps sObject
+end menu_ListScriptDeps
 
 on menu_ScriptTools sObject
    display_Script sObject
 end menu_ScriptTools
+
+on _
+end _
+
+on menu_LaunchGithub sObject
+   put the stack_Name of sObject into stackName
+   github_LaunchStack stackName
+end menu_LaunchGithub
 
 on menu_DisplayGitStatus sObject
    display_GitStatus sObject

@@ -18,34 +18,6 @@ local LocalArray
 
 --> Menu | Init
 -
-on menu_Init tObject   
-   -- do something when the menu first loads
-   
-   put the display_View of tObject into displayView
-   --
-   put the data_Array of displayView into LocalArray ["dataArray"]
-end menu_Init
-
-getprop test_Param [displayView]
-   return "b"
-end test_Param
-
-getprop test_Params [displayView]
-   return "a,b,c"
-end test_Params
-
-getprop menu_CheckTarget [displayView]
-   return true
-end menu_CheckTarget
-
-getprop checked_TestChecked
-   return true
-end checked_TestChecked
-
-getprop disabled_Test
-   return false -- true, "delete"
-end disabled_Test
-
 private function _GetOtherStackObjects displayView
    put the displayed_Array of displayView into objectArray
    --
@@ -65,9 +37,46 @@ private command _ReplaceFoundHkey @objectArray, hKey, selectedLib, foundHkey
    put empty into objectArray [hObject][foundHkey]
 end _ReplaceFoundHkey
 
+private function _IsHkey displayView
+   get the selected_Path of displayView
+   switch 
+      case item 3 of it is empty
+      case item 3 of it is "top"
+         return true
+      case item 2 of it not empty
+         return false
+      default
+         return false
+   end switch
+end _IsHkey
+
+-- getprop menu_DisplayDeps [displayView]
+return _IsHkey (displayView)
+end menu_DisplayDeps
+
+getprop disabled_EditHandler [displayView]
+   return _IsHkey (displayView)
+end disabled_EditHandler
+
 
 --> Global | Transporter | Dependency | Line | Menu
 -
+on menu_EditHandler displayView
+   put the selected_Line of displayView into hKey
+   --
+   hkey_Edit hKey
+end menu_EditHandler
+
+on menu_EditLibrary displayView
+   get the selected_Path of displayView
+   put item 1 of it into libStackName
+   --
+   edit the script of stack libStackName
+end menu_EditLibrary
+
+on _
+end _
+
 on menu_UseTransportLibrary displayView
    put the selected_Line of displayView into hKey
    put word 1 to 2 of hKey into shortHKey
@@ -96,12 +105,18 @@ end menu_UseTransportLibrary
 on _
 end _
 
-on menu_FindInDisplayed displayView
-   put word 1 to 2 of the selected_Line of displayView into shortHKey
-   put _GetOtherStackObjects (displayView) into otherStackObjects
+on menu_TranportHandlerHkeyArray displayView
+   put the selected_Line of displayView into hKey
+   hkeyLine_Deconstruct hKey, hName, hType, hObject
+   put the result into shortHkey
    --
-   put hkey_FindObjects (shortHKey, otherStackObjects)
-end menu_FindInDisplayed
+   put the title_Text of displayView into tObject
+   --
+   put transport_GetLibraryStacks (tObject) into searchObjects
+   put walk_GetHkeyArray (hKey, searchObjects) into hKeyArray
+   --
+   display_Data hKeyArray, shortHkey, "hKeyArray"
+end menu_TranportHandlerHkeyArray
 
 on submenu_Dev
    return "Dev | Menu"
@@ -110,9 +125,12 @@ end submenu_Dev
 
 --> Dev | Menu
 -
-on menu_Experiment displayView
-   put displayView
-end menu_Experiment
+on menu_FindInDisplayed displayView
+   put word 1 to 2 of the selected_Line of displayView into shortHKey
+   put _GetOtherStackObjects (displayView) into otherStackObjects
+   --
+   put hkey_FindObjects (shortHKey, otherStackObjects)
+end menu_FindInDisplayed
 
 
 --> Deps

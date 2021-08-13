@@ -22,6 +22,10 @@ getprop menu_Target [tObject]
    put tObject into LocalArray ["tObject"]  
    put the display_View of tObject into displayView
    --
+   put the displayed_HkeyArray of displayView into hKeyArray
+   put the displayed_SearchType of displayView into pWhichSearch
+   put the displayed_Transport of displayView into transportStack
+   --
    put the title_Text of displayView into transportStack
    put the displayed_Array of displayView into objectDepArray
    --
@@ -38,6 +42,15 @@ getprop menu_Target [tObject]
    --
    return displayView
 end menu_Target
+
+getprop displayTransportDeps_Param [displayView]
+   return the stack_Label of displayView 
+end displayTransportDeps_Param
+
+getprop displayTransportDeps_Params [displayView]
+   -- return the hkey_CaseConditions ["M display_TransportObjectDeps"] of me
+   return "Environment Transport Deps,Server Transport Deps,Actual Transport Deps"
+end displayTransportDeps_Params
 
 getprop disabled_FindMissing
    put LocalArray ["objectDepArray"]["Missing"] into missingArray
@@ -57,6 +70,56 @@ private function _GetTransportLibs displayView
    return LocalArray ["otherStackObjects"]
 end _GetTransportLibs
 
+getprop show_Param
+   put LocalArray ["showHow"] into showHow
+   if showHow is empty then put "stacks" into showHow
+   return showHow
+end show_Param
+
+getprop show_Params
+   return "projects,stacks,-,hkeyArray"
+end show_Params
+
+
+--> Transporter | Check | Menu
+-
+on _TestDisplayedStacks indexView
+   put the displayed_Index of indexView into shortFiles
+   rig_CheckFiles shortFiles, indexView
+end _TestDisplayedStacks
+
+on _TestRigStacks indexView
+   set the title_Text ["Stack Libraries"] of indexView to server_GetURL()
+   --
+   stack_SaveEdited "Save All"
+   display_TransporterLibs indexView
+   put the displayed_Index of indexView into shortFiles
+   --
+   rig_CheckFiles shortFiles, indexView
+end _TestRigStacks
+
+on _
+end _
+
+on menu_CheckTransportLibs
+   put _GetTransportLibs (displayView) into otherStackObjects
+   put stack_ConvertObjectsToShortPaths (otherStackObjects) into otherShortPaths
+   --
+   display_ServerStacks otherShortPaths
+   put the result into displayView
+   --
+   rig_CheckFiles otherShortPaths, displayView
+   put the result into resultArray
+   --
+   if the keys of resultArray = "good" then
+      lcw_AnswerWarning "Nothing to update!", displayView
+   else
+      lcw_Answer "Upload blue and red dependency libs to server!", displayView
+      --
+      menu_DoGlobal "menu_UploadBlueLibraries", "Global | Display | Rig | Stacks | Menu", displayView
+   end if
+end menu_CheckTransportLibs
+
 
 --> Global | Transporter | Dependency | Menu
 -
@@ -64,17 +127,20 @@ on menu_FindMissing displayView
    put LocalArray ["objectDepArray"] into objectDepArray
    --
    put transport_ListServerLibraryStacks() into searchObjects
-   transport_FindUpdateObjectDepArray objectDepArray, searchObjects
+   scriptMissing_FindAndUpdate objectDepArray, searchObjects
    set the displayed_Data of displayView to objectDepArray
    set the stack_Label of displayView to "Server Transport Deps"
    --
    put env_ScriptHierarchy (true) into searchObjects
-   transport_FindUpdateObjectDepArray objectDepArray, searchObjects
+   scriptMissing_FindAndUpdate objectDepArray, searchObjects
    set the displayed_Data of displayView to objectDepArray
    -- set the stack_Label of displayView to "Environment Transport Deps"
    --
    menu_DisplayGetpropHandler displayView
 end menu_FindMissing
+
+on _
+end _
 
 on menu_UpdateTransport displayView
    put _GetTransportStack (displayView) into tObject
@@ -93,25 +159,6 @@ on menu_UpdateTransport displayView
    menu_DisplayTransportLibs
 end menu_UpdateTransport
 
-on menu_DisplayTransportLibs
-   put _GetTransportLibs (displayView) into otherStackObjects
-   put stack_ConvertObjectsToShortPaths (otherStackObjects) into otherShortPaths
-   --
-   display_ServerStacks otherShortPaths
-   put the result into displayView
-   --
-   rig_CheckFiles otherShortPaths, displayView
-   put the result into resultArray
-   --
-   if the keys of resultArray = "good" then
-      lcw_AnswerWarning "Nothing to update!", displayView
-   else
-      lcw_Answer "Upload blue and red dependency libs to server!", displayView
-      --
-      menu_DoGlobal "menu_UploadBlueLibraries", "Global | Display | Rig | Stacks | Menu", displayView
-   end if
-end menu_DisplayTransportLibs
-
 on _
 end _
 
@@ -124,11 +171,44 @@ end menu_CreateTransporterGraphs
 on _
 end _
 
+on submenu_Check
+   return "Transporter | Check | Menu"
+end submenu_Check
+
 on menu_Refresh displayView
    put the title_Text of displayView into tObject
+   put the stack_Label of displayView into pHow
    --
-   display_TransportObjectDeps tObject
+   display_TransportObjectDeps tObject, pHow
 end menu_Refresh
+
+on menu_DisplayTransportDeps displayView, pHow
+   put the title_Text of displayView into tObject
+   --
+   display_TransportObjectDeps tObject, pHow
+end menu_DisplayTransportDeps
+
+on menu_Show displayView, showHow
+   put the displayed_HkeyArray of displayView into hkeyArray
+   --
+   switch showHow
+      case "stacks"
+         put hkeyArray_GetDepArray (hkeyArray) into dArray
+         break
+      case "projects"
+         put hkeyArray_GetProjectDepArray (hkeyArray) into dArray
+         break
+      case "hkeyArray"
+         put hkeyArray into dArray
+         break
+   end switch
+   --
+   set the displayed_Data of displayView to dArray
+   put showHow into LocalArray ["showHow"]
+end menu_Show
+
+on _
+end _
 
 on submenu_Dev
    return "Dev | Menu"

@@ -114,13 +114,13 @@ end menu_HandlerListFieldBehavior
 on _
 end _
 
-on menu_GraphTransporter hKey
-   transporter_CreateHkeyGraph hKey
-end menu_GraphTransporter
-
 on menu_DisplayDeps hKey
    display_TransportHkeyDeps hKey
 end menu_DisplayDeps
+
+on menu_GraphTransporter hKey
+   transporter_CreateHkeyGraph hKey
+end menu_GraphTransporter
 
 on menu_CreateHandlerGraph hKey
    hkey_Deconstruct hKey, hName, hType, hObject, hNum

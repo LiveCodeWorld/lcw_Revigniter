@@ -9,71 +9,34 @@ version: 0.4
 
 --> Working on
 -
-function html_ConstructFaviconLink xHTML, someURL
-   -- can be "apple-touch-icon"
-   if xHTML is empty then return empty
-   put revXMLCreateTree (xHTML, false, true, false) into treeID
-   --
-   put "html/head/title" into someNode
-   put html_ExtractNodeContents (someNode, xHTML) into pageTitle
-   put revXMLMatchingNode (treeID, "html/head", "link", "rel", "icon", 1) into someNode
-   if someNode is empty then
-      revDeleteXMLTree treeID
-      return empty
-   end if
-   put revXMLAttribute (treeID, someNode, "href") into faviconLink
-   --
-   revDeleteXMLTree treeID
-   
-   set the itemdelimiter to slash
-   if token 1 of faviconLink is among the items of "http/https" then
-      put faviconLink into faviconURL
-   else
-      put item 1 to 3 of someURL & faviconLink into faviconURL
-   end if
-   get "<img src='[[faviconURL]]' style='vertical-align: middle; width:16px; height:16px' /><a target=_blank style='vertical-align: middle; padding-left: 10px; padding-right: 12px; text-decoration: none;' href='[[someURL]]'>[[pageTitle]]</a>"
-   put merge (it) into faviconLink
-   return faviconLink
-end html_ConstructFaviconLink
-
-function html_ExtractFavicon someHTML
-   -- <link rel="icon" href="/resources/images/favicon.png">
-   -- <link id='favicon' href='/favicon.png' rel='icon' type='image/png'>
-   
-   /*
-   put merge ("<link\sid='favicon'\s(.*)/>") into someReg
-   replace "'" with quote in someReg
-   --
-   if matchText (someHTML, someReg, metaContent) is true then
-      return metaContent
-   else
-      return "Not found"
-   end if
-   */
-   
-   put revXMLCreateTree (someHTML, false, true, false) into treeID
-   -- put revXMLMatchingNode (treeID, "/head", "link", "rel", "icon", -1) into someNode -- without htmlTidy
-   put revXMLMatchingNode (treeID, "html/head", "link", "rel", "icon", 1) into someNode -- if you use htmlTidy
-   put revXMLAttribute (treeID, someNode, "href") into faviconLink
-   revDeleteXMLTree treeID
-   return faviconLink
-end html_ExtractFavicon
-
 function scrape_ConstructFedwikiPageArray someURL, pAddFaviconLink, pAddCitation, pAddMarkDownLinks
    -- uses "lib_Scrape"
    local pageArray
    
+   -- revXMLDeleteAllTrees
    -- put html_FetchTidy (someURL) into someHTML -- tidy needs updating on server
-   put url someURL into someHTML
-   put scrape_ExtractHeadSection (someHTML) into headerSection
-   put scrape_GetHeaderMetadataArray (headerSection) into headerArray
+   -- put url someURL into someHTML
+   put html_Fetch (someURL) into someHTML -- tidy needs updating on server
+   if someHTML is empty then
+      put "Could not fetch any html for:" && someURL into someMarkdown
+      put pageArray_Construct ("Error", someMarkdown) into pageArray
+      return pageArray
+   end if
    --
-   _ScrapeSetPageInfo headerArray, pageTitle, pageDescription, imageURL
-   --
-   put pageTitle into shortDescription -- not ideal
+   put embedly_FetchArray (someUrl, 420) into embedlyArray
+   put embedlyArray ["title"] into pageTitle
+   if embedlyArray is an array then
+      put embedlyArray ["description"] into pageDescription
+      put embedlyArray ["thubnail_url"] into imageURL
+      put embedlyArray ["html"] into iFrameHtml
+   else
+      put scrape_GetHeaderMetadataArray (someHTML) into headerArray
+      _ScrapeSetPageInfo headerArray, pageTitle, pageDescription, imageURL
+   end if
    
    -- create page and image array
-   put fedwiki_CreatePageAndImageArray (pageTitle, pageDescription, someURL, imageURL, shortDescription) into pageArray
+   fedwiki_AddExternalLink pageDescription, someURL
+   put pageArray_ConstructImage (imageURL, pageTitle, pageDescription, someURL, pageTitle) into pageArray
    --
    if pAddFaviconLink is true then
       put html_ConstructFaviconLink (headerSection, someURL) into htmlLine
@@ -93,55 +56,150 @@ function scrape_ConstructFedwikiPageArray someURL, pAddFaviconLink, pAddCitation
    end if
    
    -- add # Links section
-   if pAddMarkDownLinks is true then
-      pageArray_AddMarkdown pageArray, "# Links"
+   if pAddMarkDownLinks is not false then
       put fedwiki_ConstructMarkdownLine (pageTitle, someURL) into someMarkdown
+      pageArray_AddMarkdown pageArray, "# Links"
       pageArray_AddMarkdown pageArray, someMarkdown
    end if
    --
    return pageArray
 end scrape_ConstructFedwikiPageArray
 
+
+--> Embedly
+-
+function embedly_FetchArray someUrl, pWidth
+   put embedly_GetApiKey() into EmbedlyApiKey
+   
+   if pWidth is empty then put 420 into pWidth
+   
+   put urlEncode (someUrl) into encodedUrl
+   put merge ("http://api.embed.ly/1/oembed?key=[[EmbedlyApiKey]]&url=[[encodedUrl]]") into someURL
+   if mWidth is not empty then put "&maxwidth=" & pWidth after someURL
+   put url someURL into someJSON
+   put json_ToArray (someJSON) into someArray
+   return someArray
+end embedly_FetchArray
+
+function embedly_GetApiKey
+   put secret_Get ("EmbedlyApiKey") into apiKey
+   return apiKey 
+end embedly_GetApiKey
+
+
+--> Scrape
+-
+function scrape_GetHeaderMetadataArray someHTML
+   -- regular expressions this uses are weak
+   put html_GetHead (someHTML) into headerSection
+   --
+   put html_ExtractHeaderTitle (headerSection) into headerMetadataArray ["title"]
+   put html_ExtractHeaderDescription (headerSection) into headerMetadataArray ["description"]
+   --
+   put scrape_GetJsonLdArray (headerSection) into headerMetadataArray ["jsonLD"]
+   --
+   if headerSection contains "twitter:" then
+      put "card,description,title,image,creator,domain" into propNames
+      repeat for each item propName in propNames
+         put scrape_GetTwitterContent (propName, headerSection) into metaContent
+         put metaContent into headerMetadataArray ["twitter"][propName]
+      end repeat
+   end if
+   --
+   if headerSection contains "og:" then
+      put "locale,type,title,description,url,site_name,image,image:secure_url" into propNames
+      repeat for each item propName in propNames
+         put scrape_GetOgContent (propName, headerSection) into metaContent
+         put metaContent into headerMetadataArray ["og"][propName]
+      end repeat
+   end if
+   --
+   return headerMetadataArray
+end scrape_GetHeaderMetadataArray
+
 function scrape_GetTreeHeaderMetadataArray someHTML, pTidyIsTrue
-   put scrape_ExtractHeadSection (someHTML) into headerSection
+   put html_GetHead (someHTML) into headerSection
    put xml_ToArray (headerSection) into headerPageArray
    /*
    if pTidyIsTrue then html_Tidy someHtml
    put revXMLCreateTree (someHTML, false, true, false) into treeID
    if treeID is not a number then return treeID
    put scrapeID_ConstructHeaderPageArray (treeID) into headerPageArray
-   revDeleteXMLTree treeID
+   revXMLDeleteTree treeID
    */
    return headerPageArray
 end scrape_GetTreeHeaderMetadataArray
 
 
+--> ScrapeID
+-
+-- does not work with nodes that do not close like "meta"
+
+command scrapeID_OpenGraph treeID, @metaTitle, @metaImageURL, @metaDescription, @pageURL
+   -- put revXMLNodeContents (treeID, "html/head/title") into htmlTitle
+   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:title", -1, false) into titleNode
+   put word 1 to -1 of revXMLAttribute (treeID, titleNode, "content") into metaTitle
+   
+   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:image", -1, false) into imageNode
+   put word 1 to -1 of revXMLAttribute (treeID, imageNode, "content") into metaImageURL
+   
+   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:description", -1, false) into descriptionNode
+   put word 1 to -1 of revXMLAttribute (treeID, descriptionNode, "content") into metaDescription
+   
+   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:url", -1, false) into urlNode
+   put word 1 to -1 of revXMLAttribute (treeID, urlNode, "content") into pageURL
+end scrapeID_OpenGraph
+
+function scrape_HeaderSection xHTML
+   -- does not work with nodes that do not close like "meta"
+   -- unless we use tidy
+   -- revXMLDeleteAllTrees
+   put html_GetHead (xHTML) into headerXML
+   
+   put revXMLCreateTree (headerXML, false, true, false) into treeID
+   put revXMLNodeContents (treeID, "head/title") into metaArray ["title"]
+   put revXMLChildNames (treeID, "head", CR, "meta", true) into childNodes
+   
+   -- only meta tags
+   -- oftern returns "xmlerr, can't find element as cant find name or construct meaningful array"
+   repeat for each line childNode in childNodes
+      put "head/" & childNode into someNode
+      put revXMLAttributes (treeID, someNode, tab, CR) into attributeArray
+      split attributeArray using CR and tab
+      --
+      put attributeArray ["name"] into metaName
+      if metaName is not empty then
+         delete variable attributeArray ["name"]
+         put attributeArray into metaArray [metaName]
+      end if
+      
+      --
+      put attributeArray ["property"] into propertyName
+      if propertyName is not empty then
+         delete variable attributeArray ["property"]
+         put attributeArray into metaArray ["property"][propertyName]
+      end if
+      
+      -- put revXMLNextSibling (treeID, childNode) into childNode
+      -- if childNode is empty then exit repeat
+   end repeat
+   
+   -- put revXMLNodeContents (treeID, "head/title") into htmlTitle
+   -- scrapeID_OpenGraph treeID, metaTitle, metaImageURL, metaDescription, pageURL
+   --
+   revXMLDeleteTree treeID
+   return metaArray
+end scrape_HeaderSection
+
+
 --> Scrape | Without | XML
 -
-function scrape_GetHeaderMetadataArray someHTML
-   -- regular expressions this uses are weak
-   put scrape_ExtractHeadSection (someHTML) into headerSection
-   --
-   put scrape_GetJsonLdArray (headerSection) into headerMetadataArray ["jsonLD"]
-   --
-   put "card,description,title,image,creator,domain" into propNames
-   repeat for each item propName in propNames
-      put scrape_GetTwitterContent (propName, headerSection) into metaContent
-      put metaContent into headerMetadataArray ["twitter"][propName]
-   end repeat
-   --
-   put "locale,type,title,description,url,site_name,image,image:secure_url" into propNames
-   repeat for each item propName in propNames
-      put scrape_GetOgContent (propName, headerSection) into metaContent
-      put metaContent into headerMetadataArray ["og"][propName]
-   end repeat
-   --
-   return headerMetadataArray
-end scrape_GetHeaderMetadataArray
-
 function scrape_GetJsonLdArray someHTML
    get scrape_GetJsonLD (someHTML)
+   if it is empty then return empty
    put json_ToArray (it) into jsonLdArray
+   if it is false then return empty
+   --
    return jsonLdArray
 end scrape_GetJsonLdArray
 
@@ -185,13 +243,14 @@ function scrape_GetOgContent propName, someHTML
    <meta property="og:image:secure_url" content="https://www.pabbly.com/wp-content/uploads/2019/07/formbuilder.png" />
    */
    
-   put merge ("<meta\sproperty='og:[[propName]]'\scontent='(.*)'\s*/>") into someReg
-   replace "'" with quote in someReg
+   put merge ("(?miU)<meta\s+property='og:[[propName]]'\s+content='(.*)'\s*/>") into someReg
+   put "['" & quote & "]" into singleOrDoubleQuote
+   replace "'" with singleOrDoubleQuote in someReg
    --
    if matchText (someHTML, someReg, metaContent) is true then
       return metaContent
    else
-      return "Not found"
+      return empty
    end if
 end scrape_GetOgContent
 
@@ -204,8 +263,9 @@ function scrape_GetTwitterContent propName, someHTML
    <meta name="twitter:image" content="https://www.pabbly.com/wp-content/uploads/2019/07/formbuilder.png" />
    */
    --
-   put merge ("<meta\s+name='twitter:[[propName]]'\s+content='(.*)'\s*/*>") into someReg
-   replace "'" with quote in someReg
+   put merge ("(?miU)<meta\s+name='twitter:[[propName]]'\s+content='(.*)'\s*/*>") into someReg
+   put "['" & quote & "]" into singleOrDoubleQuote
+   replace "'" with singleOrDoubleQuote in someReg
    --
    if matchText (someHTML, someReg, metaContent) is true then
       return metaContent
@@ -213,13 +273,6 @@ function scrape_GetTwitterContent propName, someHTML
       return empty
    end if
 end scrape_GetTwitterContent
-
-function scrape_ExtractHeadSection someHTML
-   put offset ("<head", someHTML) into startNum
-   put offset ("</head>", someHTML, startNum) into afterEndNum
-   put char startNum to (startNum + afterEndNum + 6) of someHTML into headerSection
-   return headerSection
-end scrape_ExtractHeadSection
 
 
 --> Working on
@@ -250,7 +303,7 @@ function scrape_GetDiv someHtml, attributeName, attributeValue, pTidyIsTrue
    put revXMLCreateTree (someHTML, false, true, false) into treeID
    if treeID is not a number then return treeID
    put scrapeID_GetDivText (treeID, attributeName, attributeValue) into someContent
-   revDeleteXMLTree treeID
+   revXMLDeleteTree treeID
    return someContent
 end scrape_GetDiv
 
@@ -277,47 +330,6 @@ end scrapeID_GetDivNode
 
 --> Scrape
 -
-function scrape_HeaderSection xHTML
-   -- does not work with nodes that do not close like "meta"
-   -- unless we use tidy
-   -- revXMLDeleteAllTrees
-   put scrape_ExtractHeadSection (xHTML) into headerXML
-   
-   put revXMLCreateTree (headerXML, false, true, false) into treeID
-   put revXMLNodeContents (treeID, "head/title") into metaArray ["title"]
-   put revXMLChildNames (treeID, "head", CR, "meta", true) into childNodes
-   
-   -- only meta tags
-   -- oftern returns "xmlerr, can't find element as cant find name or construct meaningful array"
-   repeat for each line childNode in childNodes
-      put "head/" & childNode into someNode
-      put revXMLAttributes (treeID, someNode, tab, CR) into attributeArray
-      split attributeArray using CR and tab
-      --
-      put attributeArray ["name"] into metaName
-      if metaName is not empty then
-         delete variable attributeArray ["name"]
-         put attributeArray into metaArray [metaName]
-      end if
-      
-      --
-      put attributeArray ["property"] into propertyName
-      if propertyName is not empty then
-         delete variable attributeArray ["property"]
-         put attributeArray into metaArray ["property"][propertyName]
-      end if
-      
-      -- put revXMLNextSibling (treeID, childNode) into childNode
-      -- if childNode is empty then exit repeat
-   end repeat
-   
-   -- put revXMLNodeContents (treeID, "head/title") into htmlTitle
-   -- scrapeID_OpenGraph treeID, metaTitle, metaImageURL, metaDescription, pageURL
-   --
-   revDeleteXMLTree treeID
-   return metaArray
-end scrape_HeaderSection
-
 function scrape_ContentSection someHtml
    -- this removes all html tags from the section
    put "//*[@id='content']" into someXPath
@@ -351,7 +363,7 @@ function scrape_EvaluateXPath someHtml, someXPath, pTidyIsTrue
    if pTidyIsTrue then html_Tidy someHtml
    put revXMLCreateTree (someHTML, false, true, false) into treeID
    put revXMLEvaluateXPath (treeID, someXPath) into someContent
-   revDeleteXMLTree treeID
+   revXMLDeleteTree treeID
    return someContent
 end scrape_EvaluateXPath
 
@@ -359,28 +371,13 @@ function scrape_WithXPath someHtml, someXPath, pTidyIsTrue
    if pTidyIsTrue then html_Tidy someHtml
    put revXMLCreateTree (someHTML, false, true, false) into treeID
    put revXMLDataFromXPathQuery (treeID, someXPath) into someContent
-   revDeleteXMLTree treeID
+   revXMLDeleteTree treeID
    return someContent
 end scrape_WithXPath
 
 
 --> Scrape | XML | OpenGraph
 -
-command scrapeID_OpenGraph treeID, @metaTitle, @metaImageURL, @metaDescription, @pageURL
-   -- put revXMLNodeContents (treeID, "html/head/title") into htmlTitle
-   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:title", -1, false) into titleNode
-   put word 1 to -1 of revXMLAttribute (treeID, titleNode, "content") into metaTitle
-   
-   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:image", -1, false) into imageNode
-   put word 1 to -1 of revXMLAttribute (treeID, imageNode, "content") into metaImageURL
-   
-   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:description", -1, false) into descriptionNode
-   put word 1 to -1 of revXMLAttribute (treeID, descriptionNode, "content") into metaDescription
-   
-   put revXMLMatchingNode (treeID, "html/head", "meta", "property", "og:url", -1, false) into urlNode
-   put word 1 to -1 of revXMLAttribute (treeID, urlNode, "content") into pageURL
-end scrapeID_OpenGraph
-
 function scrapeID_GetContentSectionPath treeID
    put "//*[@id='content']" into someXPath
    put revXMLEvaluateXPath (treeID, someXPath) into contentSectionNode
@@ -404,7 +401,7 @@ command scrape_HtmlHeadings someHtml, @pageTitle, @handlerNames, @handerTitleNod
    
    put scrapeID_ConstructHeaderPageArray (treeID) into headerPageArray
    --
-   revDeleteXMLTree treeID
+   revXMLDeleteTree treeID
    return headerPageArray
 end scrape_HtmlHeadings
 
@@ -545,6 +542,12 @@ end xpath_ConstructHeadingPath
 
 --> Private
 -
+private command _Utf8Decode utf8Text
+   set the htmltext of the templatefield to utf8Text
+   put the unicodetext of the templatefield into someUTF16
+   put unidecode (someUTF16, "ANSI") into utf8Text
+end _Utf8Decode
+
 private command _ScrapeSetPageInfo headerArray, @pageTitle, @pageDescription, @imageURL
    /*
    put metaArray ["author"]["content"] into contentAuthor
@@ -564,9 +567,12 @@ private command _ScrapeSetPageInfo headerArray, @pageTitle, @pageDescription, @i
    put headerArray ["og"]["title"] into pageTitle
    if pageTitle is empty then put headerArray ["twitter"]["title"] into pageTitle
    if pageTitle is empty then put headerArray ["title"] into pageTitle
+   _Utf8Decode pageTitle
    
    put headerArray ["og"]["description"] into pageDescription
    if pageDescription is empty then put headerArray ["twitter"]["description"] into pageDescription
+   if pageDescription is empty then put headerArray ["description"] into pageDescription
+   if pageDescription is empty then put pageTitle into pageDescription   
    
    put headerArray ["og"]["image"] into imageURL
    if imageURL is empty then put headerArray ["twitter"]["image"] into imageURL

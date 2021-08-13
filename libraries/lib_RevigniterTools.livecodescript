@@ -13,7 +13,7 @@ is the same as far as possible as code help and run locally.
 
 There is a local Revigniter controller folder that is versioned in GitHub, and can be accessed using:
 
-- function rig_FetchLocalControllerFolder()
+- function rig_GetLocalControllerFolder()
 - command rig_StoreLocalControllerFolder
 
 Thre is no equivalent for RevIgniter stack libraries, as they are stored locally in whatever project makes sence,
@@ -24,13 +24,91 @@ problems regarding duplication of files. Instead we access local stack libraries
 
 --> Working on
 -
+function rig_ConstructDepScriptLines shortLibPaths, pOldWay
+   put rig_ListStackFiles() into serverShortStackFiles
+   --
+   replace CR with comma in shortLibPaths
+   repeat for each item shortController in shortLibPaths
+      if pOldWay is true then
+         -- start using stack (gRigA["APPPATH"] & "stacks/lib_Fedwiki.livecode")
+         put "stacks/" & shortController into relPath
+         put "start using stack (gRigA[" & kwote("APPPATH") & "] &" && kwote(relPath) & ")" into scriptLine
+      else
+         put rig_GetControllerStackName (shortController) into stackName
+         
+         -- some checks
+         switch
+            case exists (stack stackName) is false
+               breakpoint
+               next repeat
+            case _QuickUploadedTest (stackName, serverShortStackFiles) is false
+               breakpoint
+               next repeat
+            default
+               put "rigLoadStack" && kwote(stackName) into scriptLine
+               put CR & scriptLine after scriptLines
+         end switch
+      end if
+   end repeat
+   delete char 1 of scriptLines
+   return scriptLines
+end rig_ConstructDepScriptLines
+
+function _QuickUploadedTest stackName, serverShortStackFiles
+   -- hacky but effective test
+   replace ".livecodescript" with empty in serverShortStackFiles -- do this first
+   replace ".livecode" with empty in serverShortStackFiles
+   --
+   put stackName is among the lines of serverShortStackFiles into isThere
+   return isThere
+end _QuickUploadedTest
+
+function rig_GetControllerStackName shortController
+   -- should work but some old stacks have ".livecode" as an extension
+   -- a basic naming convention assumption that a stacks short file is its name + extension
+   set the itemdelimiter to "."
+   put item 1 of shortController into stackName
+   return stackName
+end rig_GetControllerStackName
+
+function rig_LocalControllerStackPath shortController
+   put rig_GetLocalControllerFolder() into controllerFolder
+   --
+   set the itemdelimiter to slash
+   put item 1 to -2 of controllerFolder & "/stacks/" into stackFolder
+   set the itemdelimiter to "."
+   put stackFolder & shortController into scriptStackFile
+   put "livecodescript" into item -1 of scriptStackFile
+   --
+   return scriptStackFile
+end rig_LocalControllerStackPath
+
+function rig_LocalControllerScriptPath shortController
+   put rig_GetLocalControllerFolder() into controllerFolder
+   put controllerFolder & shortController into controllerScriptPath
+   return controllerScriptPath
+end rig_LocalControllerScriptPath
+
+function rig_GetLocalControllerFolder
+   put pref_FetchValue ("rigControllerFolder") into controllerFolder
+   text_AddTrailing controllerFolder, slash
+   return controllerFolder
+end rig_GetLocalControllerFolder
+
+command rig_StoreControllerFolder controllerFolder
+   text_AddTrailing controllerFolder, slash
+   pref_SaveValue "rigControllerFolder", controllerFolder
+   put the result into dataArray
+   return dataArray
+end rig_StoreControllerFolder
+
 
 --> Rig
 -
 command rig_SetLocalControllerFolder @controllerFolder
    -- utility
    if controllerFolder is empty then
-      put rig_FetchLocalControllerFolder() into controllerFolder
+      put rig_GetLocalControllerFolder() into controllerFolder
       if there is not a folder controllerFolder then
          put controllerFolder
          answer folder "Select a folder for your controllers..." as sheet
@@ -115,20 +193,6 @@ getprop rig_Script [pShortControllerFile]
 end rig_Script
 
 
---> Rig | Folders | Local | Controllers
--
-function rig_FetchLocalControllerFolder
-   put pref_FetchValue ("rigControllerFolder") into rigControllerFolder
-   return rigControllerFolder
-end rig_FetchLocalControllerFolder
-
-command rig_StoreControllerFolder rigControllerFolder
-   pref_SaveValue "rigControllerFolder", rigControllerFolder
-   put the result into  dataArray
-   return dataArray
-end rig_StoreControllerFolder
-
-
 --> Rig | Create
 -
 command rig_DownloadScriptAndCreateStack shortController, pControllerFolder
@@ -139,10 +203,10 @@ command rig_DownloadScriptAndCreateStack shortController, pControllerFolder
    
    put "rest.livecode.world" into pServerURL
    rig_SetLocalControllerFolder pControllerFolder
+   put pControllerFolder & shortController into controllerFile
    
    -- save the controller.lc version locally
    put rig_FetchController (shortController, pServerURL) into rigScript
-   put pControllerFolder & shortController into controllerFile
    put rigScript into url ("binfile:" & controllerFile)
    
    -- save the Livecode script version locally to a script only stack shortController.livecodescript
@@ -158,13 +222,8 @@ command rig_DownloadScriptAndCreateStack shortController, pControllerFolder
 end rig_DownloadScriptAndCreateStack
 
 command rig_CreateLocalControllerStack controllerScript, shortController, pControllerFolder
-   rig_SetLocalControllerFolder pControllerFolder
-   set the itemdelimiter to slash
-   put item 1 to -2 of pControllerFolder & "/stacks/" into stackFolder
-   set the itemdelimiter to "."
-   put stackFolder & shortController into scriptStackFile
-   put "livecodescript" into item -1 of scriptStackFile
-   
+   put rig_LocalControllerStackPath (shortController) into scriptStackFile
+   --
    if exists (stack scriptStackFile) then
       set the script of stack scriptStackFile to controllerScript
    else
@@ -182,11 +241,15 @@ end rig_CreateLocalControllerStack
 
 --> Rig | Controller | Script
 -
-function rig_CreateContainerScript rigScript, pControllerShortFile
-   put word 1 to -1 of rigScript into rigScript
-   
-   _StripInitCommand rigScript, pControllerShortFile
+function rig_CreateContainerScript rigScript, shortController
+   if shortController is empty then return empty
+   set the itemdelimiter to "."
+   put item 1 of shortController into cName
+   set the itemdelimiter to comma
+   --
+   _StripInitCommand rigScript, cName
    put the result into getpropHandler
+   --
    _StripHeaderFromRigScript rigScript
    
    repeat with lineNum = 1 to the number of lines of rigScript
@@ -208,7 +271,7 @@ function rig_CreateContainerScript rigScript, pControllerShortFile
    return rigScript
 end rig_CreateContainerScript
 
-function rig_ConstructControllerScript scriptObject, shortControllerFile, pDepShortPaths, pScriptDescription
+function rig_ConstructControllerScript scriptObject, shortController, pDepShortPaths, pScriptDescription
    if pScriptDescription is empty then
       put the script_Markdown of scriptObject into pScriptDescription
    end if
@@ -217,17 +280,22 @@ function rig_ConstructControllerScript scriptObject, shortControllerFile, pDepSh
       put the dep_StackNames of scriptObject into stackNames
       put stack_ConvertNamesToShortPaths (stackNames, badNames) into pDepShortPaths
    end if
-   
+   --
    put the script of scriptObject into someScript
    put the revAvailableHandlers of scriptObject into hTable
+   put _MakeControllerScript (someScript, hTable, shortController, pDepShortPaths, pScriptDescription) into rigScript
+   --
+   return rigScript
+end rig_ConstructControllerScript
+
+private function _MakeControllerScript someScript, hTable, shortController, pDepShortPaths, pScriptDescription
    put rig_ExtractControllerHandlers (hTable, someScript) into controllerHandlers
-   
    put rig_FilterControllerScript (someScript, hTable) into controllerScript
    text_Indent controllerScript
    text_Indent pScriptDescription
-   put rig_ConstructControllerFromScript (controllerScript, shortControllerFile, controllerHandlers, pScriptDescription, pDepShortPaths) into rigScript
+   put rig_ConstructControllerFromScript (controllerScript, shortController, controllerHandlers, pScriptDescription, pDepShortPaths) into rigScript
    return rigScript
-end rig_ConstructControllerScript
+end _MakeControllerScript
 
 function rig_ConstructControllerFromScript controllerScript, shortControllerFile, controllerHandlerList, scriptDescription, pShortDepLibFiles
    -- controllerScript must has getprop and setprop handers stripped out
@@ -291,24 +359,10 @@ function rig_FilterControllerScript someScript, hTable
 end rig_FilterControllerScript
 
 
---> Revigniter | Controllers | Create
--
-function rig_ConstructDepScriptLines shortLibPaths
-   replace CR with comma in shortLibPaths
-   repeat for each item shortLibPath in shortLibPaths
-      -- start using stack (gAPPPATH & "stacks/lib_Audioboom.livecode")
-      put "stacks/" & shortLibPath into relPath
-      put "start using stack (gAPPPATH &" && kwote (relPath) & ")" into scriptLine
-      put CR & scriptLine after scriptLines
-   end repeat
-   delete char 1 of scriptLines
-   return scriptLines
-end rig_ConstructDepScriptLines
-
-
 --> Deps
 -
 private command _StripHeaderFromRigScript @rigScript
+   put word 1 to -1 of rigScript into rigScript
    put the number of lines of rigScript into maxNum
    repeat maxNum
       put word 1 to 2 of line 1 of rigScript into firstTwoWords
@@ -325,12 +379,7 @@ private command _StripHeaderFromRigScript @rigScript
    end repeat
 end _StripHeaderFromRigScript
 
-private command _StripInitCommand @rigScript, pControllerShortFile
-   if pControllerShortFile is empty then return empty
-   
-   set the itemdelimiter to "."
-   put item 1 of pControllerShortFile into cName
-   --
+private command _StripInitCommand @rigScript, cName
    script_SetHandlerOffsets startHandler, endHandler, cName, "command", rigScript
    --
    if endHandler = 0 then return empty
@@ -341,7 +390,9 @@ private command _StripInitCommand @rigScript, pControllerShortFile
    put the number of lines of initHandler into maxLine
    repeat with lineNum = 2 to (maxLine -1)
       get line lineNum of initHandler
-      --  start using stack (gAPPPATH & "stacks/lib_HTML.livecode")
+      -- was start using stack (gAPPPATH & "stacks/lib_HTML.livecode")
+      -- start using stack (gRigA["APPPATH"] & "stacks/lib_Fedwiki.livecode")
+      
       put token -2 of it into pathBit
       --
       set the itemdelimiter to slash

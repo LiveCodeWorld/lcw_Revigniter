@@ -18,6 +18,30 @@ Here we define handlers that create projects and project specific stacks (librar
 local LocalArray
 
 
+--> Working on
+-
+on graph_TidyLinkArray @hkeyArray
+   -- before graph arrays have been created
+   -- let's just process hkeyArray for transportation purposes
+   put the long id of me into processObject
+   -- hkeyArray_Process hkeyArray, processObject
+end graph_TidyLinkArray
+
+on hkey_Rename hkey
+   hkey_Deconstruct hkey, hName, hType, hObject, hNum
+   switch
+      case hName = "transporter_RawJSON"
+         return empty
+      case hName begins with "rig"
+         put "revIgniter" into hObject -- could be "stack 'revIgniter'"?
+         put hKeyLine_Construct (hName, hType, hObject) into rigKey
+         return rigKey
+      default
+         return hKey
+   end switch
+end hkey_Rename
+
+
 --> Events
 -
 on mDoubleUp_PageArray displayView, sText, sPath
@@ -28,17 +52,68 @@ on mDoubleUp_PageArray displayView, sText, sPath
 end mDoubleUp_PageArray
 
 on mDoubleUp_ObjectDeps displayView, someValue, sPath
-   put line 1 of sPath into hObject
-   put line 2 of sPath into objectHkey
-   put line 3 of sPath into objectHkeyParent
-   --
-   hkey_Edit objectHkeyParent
-   put word 2 of objectHkey
+   switch the number of lines of sPath
+      case 4
+         put line -1 of sPath into hKey
+         put line -2 of sPath into shortMissingHkey
+         --
+         put the displayed_Object of displayView into sObject
+         put the displayed_HkeyArray of displayView into hkeyArray
+         --
+         hkey_Edit hKey
+         --
+         display_MissingHkey hkeyArray, sObject
+         break
+      case 3
+         put line 3 of sPath into objectHkeyParent
+         hkey_Edit objectHkeyParent
+         break
+      default
+         put line -1 of sPath into hObject
+         hkey_Edit hObject
+   end switch
 end mDoubleUp_ObjectDeps
 
 
 --> Working on
 -
+--> Display | Transport
+-
+command display_Transporters pDisplayArray
+   if pDisplayArray is true then
+      put rig_FetchControllerPathArray() into sData
+   else
+      put rig_ListControllerFiles() into sData
+   end if
+   --   
+   display_Tools sData, "rest.livecode.world", "Revigniter | Display | Controller", "Transporters"
+   put the result into displayView
+   --
+   return displayView
+end display_Transporters
+
+on mDoubleUp_RevigniterDisplayController dView shortFile
+   breakPoint
+   rig_EditController shortFile
+end mDoubleUp_RevigniterDisplayController
+
+command display_RigControllerArray
+   put "rest.livecode.world" into serverURL
+   put "revIgniter Controller Array" into stackLabel
+   --
+   put rig_FetchControllerPathArray() into controllerPathArray
+   --
+   put display_FindView (stackLabel, serverURL) into displayView
+   if exists (displayView) then
+      set the displayed_Data of displayView to controllerPathArray
+   else
+      display_Array controllerPathArray, serverURL, stackLabel
+      put the result into displayView
+      display_SetInteractions displayView, "Revigniter | Display | Controller", ""
+   end if
+   return displayView
+end display_RigControllerArray
+
 function transport_GetDroppedUrlIndex
    put the text of fld 1 of stack "Transporter Drop Urls" into urlIndex
    return urlIndex
@@ -59,7 +134,6 @@ command display_TransportDropper
    set the systemwindow of stack stackName to true
    --
    display_SetInteractions displayView, "Transporter | Tree", "mDouble_DoTransport"
-   set the title_Menu of displayView to "Global |  | Menu"
    --
    set the drop_Command of displayView to "drop_DoTransport"
    put menu_GetGlobalController ("Global | Transporter | Tree | Menu") into mController
@@ -120,56 +194,14 @@ command display_ServerStacks shortStackFiles, pDisplayView
 end display_ServerStacks
 
 
---> Display | Transport
--
-command display_Transporters
-   put "rest.livecode.world" into serverURL
-   put "revIgniter Controllers" into stackLabel
-   --
-   put rig_ListControllerFiles() into shortFiles
-   --
-   put display_FindView (stackLabel, serverURL) into displayView
-   if exists (displayView) then
-      set the displayed_Lines of displayView to shortFiles
-   else
-      put serverURL & comma & stackLabel into displayTitle
-      display_Lines shortFiles, serverURL, "rigController_DownloadAndEdit", stackLabel, true
-      put the result into displayView
-      set the title_Menu of displayView to "Global | Revigniter | Display | Controller | Menu"
-      set the line_Menu of displayView to "Global | Revigniter | Display | Controller | Line | Menu"
-   end if
-   return displayView
-end display_Transporters
-
-command display_RigControllerArray
-   put "rest.livecode.world" into serverURL
-   put "revIgniter Controller Array" into stackLabel
-   --
-   put rig_FetchControllerPathArray() into controllerPathArray
-   --
-   put display_FindView (stackLabel, serverURL) into displayView
-   if exists (displayView) then
-      set the displayed_Data of displayView to controllerPathArray
-   else
-      put "Global | Revigniter | Display | Controller | Menu" into treeMenuTitle
-      put "Global | Revigniter | Display | Controller | Line | Menu" into lineMenuTitle
-      --
-      put serverURL & comma & stackLabel into displayTitle
-      display_Array controllerPathArray, displayTitle, treeMenuTitle, lineMenuTitle
-      put the result into displayView
-   end if
-   return displayView
-end display_RigControllerArray
-
-
 --> Display | Transport | Deps
 -
 command display_TransportObjectDeps tObject, pWhichSearch
-   put the transport_ObjectDepArray [pWhichSearch] of tObject into objectDepArray
-   if item 1 objectDepArray is "error" then
-      lcw_AnswerWarning "Not a transporter!"
-   end if
+   -- put the transport_ObjectDepArray [pWhichSearch] of tObject into objectDepArray
+   put the transport_DepHkeyArray [pWhichSearch] of tObject into hKeyArray
+   put hkeyArray_GetStackDepArray (hkeyArray) into objectDepArray
    --
+   if item 1 objectDepArray is "error" then lcw_AnswerWarning "Not a transporter!"
    switch char 1 of pWhichSearch
       case "e"
          put "Environment Transport Deps" into stackLabel
@@ -185,6 +217,10 @@ command display_TransportObjectDeps tObject, pWhichSearch
    put the result into displayView
    --
    display_SetInteractions displayView, "Transporter | Dependency", "mDoubleUp_ObjectDeps"
+   --
+   set the displayed_HkeyArray of displayView to hKeyArray
+   set the displayed_Transport of displayView to tObject
+   set the displayed_SearchType of displayView to pWhichSearch
    --
    return displayView
 end display_TransportObjectDeps
@@ -305,10 +341,14 @@ command transport_SetSelectedHandler hName
 end transport_SetSelectedHandler
 
 function display_GetSelectedTransport
+   put LocalArray ["Selected Tranporter Short File"] into shortFile
+   if exists (stack shortFile) then return shortFile
+   
    put display_FindView ("revIgniter Controllers") into tDisplayView
    if exists (tDisplayView) is false then return empty
    
    put the selected_Line of tDisplayView into shortFile
+   put shortFile into LocalArray ["Selected Tranporter Short File"]
    return shortFile
 end display_GetSelectedTransport
 
@@ -320,27 +360,6 @@ command transport_SetSelected shortFile, displayView
       set the selected_Line of tDisplayView to shortFile
    end if
 end transport_SetSelected
-
-on hkey_Rename hkey
-   hkey_Deconstruct hkey, hName, hType, hObject, hNum
-   switch
-      case hName = "transporter_RawJSON"
-         return empty
-      case hName begins with "rig"
-         put "revIgniter" into hObject -- could be "stack 'revIgniter'"?
-         put hKeyLine_Construct (hName, hType, hObject) into rigKey
-         return rigKey
-      default
-         return hKey
-   end switch
-end hkey_Rename
-
-on graph_TidyLinkArray @hkeyArray
-   -- before graph arrays have been created
-   -- let's just process hkeyArray for transportation purposes
-   put the long id of me into processObject
-   hkeyArray_Process hkeyArray, processObject
-end graph_TidyLinkArray
 
 
 --> Deps

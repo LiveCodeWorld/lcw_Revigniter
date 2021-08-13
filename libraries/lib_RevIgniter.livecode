@@ -16,6 +16,88 @@ The code to access local copies of files should be in "lib_RevigniterTools"
 */
 
 
+--> Working on
+-
+function rig_GetServerApplicationFolder pServerURL
+   -- /var/www/html/system/application/rest.livecode.world/
+   put server_GetProperty ("rigApplicationFolder", pServerURL) into rigApplicationFolder
+   text_AddTrailing rigApplicationFolder, "/" -- should be on storing and not reading
+   return rigApplicationFolder
+end rig_GetServerApplicationFolder
+
+command rig_SetServerApplicationFolder rigApplicationFolder, pServerURL
+   text_AddTrailing rigApplicationFolder, "/"
+   server_SetProperty "rigApplicationFolder", rigApplicationFolder, pServerURL
+end rig_SetServerApplicationFolder
+
+function rig_GetApplicationFolder
+   if the environment = "server" then -- revIgniter version
+      -- put gAPPPATH into rigApplicationFolder
+      put gRigA["APPPATH"] into rigApplicationFolder
+   else
+      -- from stored serverArray
+      -- useful for local client operations on remote server
+      put rig_GetServerApplicationFolder() into rigApplicationFolder
+   end if
+   text_AddTrailing rigApplicationFolder, "/"
+   return rigApplicationFolder
+end rig_GetApplicationFolder
+
+function rig_GetSystemFolder pFolder
+   -- quick hack
+   -- this depends on the site specific configuration
+   -- ie is it configured to have multiple sites
+   
+   if the environment = "server" then
+      -- put gAPPPATH into rigSystemFolder
+      put gRigA["APPPATH"] into rigSystemFolder
+   else
+      put rig_GetServerApplicationFolder() into rigSystemFolder
+   end if
+   
+   -- here is the hack :)
+   set the itemdelimiter to "/"
+   if server_GetURL() = "livecode.world" then
+      delete item -1 of rigSystemFolder
+   else
+      delete item -2 to -1 of rigSystemFolder
+   end if
+   
+   text_AddTrailing rigSystemFolder, "/"
+   if pFolder is not empty then
+      put pFolder & "/" after rigSystemFolder
+   end if
+   return rigSystemFolder
+end rig_GetSystemFolder
+
+
+--> Rig | Folders
+-
+function rig_ControllerFolder
+   if the environment = "server" then return gAPPPATH & "controllers/"
+   
+   put rig_GetFolder ("controllers") into someFolder
+   return someFolder
+end rig_ControllerFolder
+
+function rig_HelperFolder
+   put rig_GetFolder ("helpers") into someFolder
+   return someFolder
+end rig_HelperFolder
+
+function rig_StackFolder
+   put rig_GetApplicationFolder() into someFolder
+   put "stacks/" after someFolder
+   return someFolder
+end rig_StackFolder
+
+function rig_GetFolder shortFolder
+   put rig_GetApplicationFolder() into someFolder
+   put shortFolder & "/" after someFolder
+   return someFolder
+end rig_GetFolder
+
+
 --> Rig | Model
 -
 command rig_EditController shortFile   
@@ -102,6 +184,54 @@ end rig_StoreStack
 
 --> Working on
 -
+--> Rig | Assets
+-
+command rig_AssetFetchAndSaveImage imageURL, pUseCurl
+   set the itemdelimiter to slash
+   put item -1 of imageURL into shortFile
+   put rig_AssetImageFolder() into imageAssetFolder
+   put imageAssetFolder & shortFile into imagePath
+   
+   put shortFile into resultArray ["shortFile"]
+   put there is a file imagePath into resultArray ["file exists"]
+   put imageAssetFolder into resultArray ["imageAssetFolder"]
+   put imagePath into resultArray ["imagePath"]
+   put "https://rest.livecode.world/assets/img/" & shortFile into assetURL
+   put assetURL into resultArray ["assetURL"]
+   
+   set the defaultfolder to imageAssetFolder
+   if pUseCurl is true then
+      put "curl -O" && kwote (imageURL) into someShell
+      put shell (SomeShell) into fetchResult
+      put shellResult into resultArray ["shellResult"]
+   else
+      put url imageURL into url ("binfile:" & imagePath)
+      if the result is not empty then
+         put the result into resultArray ["shellResult"]
+      end if
+   end if
+   
+   put exif_GetInfoArray (imagePath) into exifArray
+   put exifArray into resultArray ["exifArray"]
+   
+   return resultArray
+end rig_AssetFetchAndSaveImage
+
+function rig_AssetImageFile shortFile
+   put rig_AssetImageFolder() & shortFile into imageFile
+   return imageFile
+end rig_AssetImageFile
+
+function rig_AssetImageFolder
+   switch the platform
+      case "MacOS"
+         return "/Users/BabyBlue/Pictures/OSCEDays Bilbao/"
+      default
+         put the defaultfolder & "/assets/img/" into imageFolder
+         return imageFolder
+   end switch
+end rig_AssetImageFolder
+
 function rig_GetOveride
    if exists (stack "behavior_RigLocalOveride") is false then return empty
    --
@@ -117,12 +247,6 @@ command rig_SetOveride someBoolean
       remove the script of stack "behavior_RigLocalOveride" from front
    end if
 end rig_SetOveride
-
-function rig_GetServerApplicationFolder pServerURL
-   put server_GetProperty ("rigApplicationFolder", pServerURL) into rigApplicationFolder
-   text_AddTrailing Rig_ApplicationFolder, "/" -- should be on storing and not reading
-   return rigApplicationFolder
-end rig_GetServerApplicationFolder
 
 
 --> LCW | Shell
@@ -358,71 +482,6 @@ function rig_StackIsSameAsLocal shortFile
 end rig_StackIsSameAsLocal
 
 
---> Rig | Folders
--
-function rig_GetApplicationFolder
-   if the environment = "server" then -- revIgniter version
-      put gAPPPATH into rigApplicationFolder
-   else
-      -- from stored serverArray
-      -- useful for local clinet operations on remote server
-      put rig_GetServerApplicationFolder() into rigApplicationFolder
-   end if
-   text_AddTrailing rigApplicationFolder, "/"
-   return rigApplicationFolder
-end rig_GetApplicationFolder
-
-function rig_GetSystemFolder pFolder
-   -- quick hack
-   -- this depends on the site specific configuration
-   -- ie is it configured to have multiple sites
-   
-   if the environment = "server" then
-      put gAPPPATH into rigSystemFolder
-   else
-      put rig_GetServerApplicationFolder() into rigSystemFolder
-   end if
-   
-   -- here is the hack :)
-   set the itemdelimiter to "/"
-   if server_GetURL() = "livecode.world" then
-      delete item -1 of rigSystemFolder
-   else
-      delete item -2 to -1 of rigSystemFolder
-   end if
-   
-   text_AddTrailing rigSystemFolder, "/"
-   if pFolder is not empty then
-      put pFolder & "/" after rigSystemFolder
-   end if
-   return rigSystemFolder
-end rig_GetSystemFolder
-
-function rig_ControllerFolder
-   if the environment = "server" then return gAPPPATH & "controllers/"
-   
-   put rig_GetFolder ("controllers") into someFolder
-   return someFolder
-end rig_ControllerFolder
-
-function rig_HelperFolder
-   put rig_GetFolder ("helpers") into someFolder
-   return someFolder
-end rig_HelperFolder
-
-function rig_StackFolder
-   put rig_GetApplicationFolder() into someFolder
-   put "stacks/" after someFolder
-   return someFolder
-end rig_StackFolder
-
-function rig_GetFolder shortFolder
-   put rig_GetApplicationFolder() into someFolder
-   put shortFolder & "/" after someFolder
-   return someFolder
-end rig_GetFolder
-
-
 --> Rig | Files
 -
 function rig_StackPath shortPath
@@ -529,55 +588,6 @@ command rig_UseShortLibs shortFiles, pLibPath
    end repeat
    return true
 end rig_UseShortLibs
-
-
---> Rig | Assets
--
-command rig_AssetFetchAndSaveImage imageURL, pUseCurl
-   set the itemdelimiter to slash
-   put item -1 of imageURL into shortFile
-   put rig_AssetImageFolder() into imageAssetFolder
-   put imageAssetFolder & shortFile into imagePath
-   
-   put shortFile into resultArray ["shortFile"]
-   put there is a file imagePath into resultArray ["file exists"]
-   put imageAssetFolder into resultArray ["imageAssetFolder"]
-   put imagePath into resultArray ["imagePath"]
-   put "https://rest.livecode.world/assets/img/" & shortFile into assetURL
-   put assetURL into resultArray ["assetURL"]
-   
-   set the defaultfolder to imageAssetFolder
-   if pUseCurl is true then
-      put "curl -O" && kwote (imageURL) into someShell
-      put shell (SomeShell) into fetchResult
-      put shellResult into resultArray ["shellResult"]
-   else
-      put url imageURL into url ("binfile:" & imagePath)
-      if the result is not empty then
-         put the result into resultArray ["shellResult"]
-      end if
-   end if
-   
-   put exif_GetInfoArray (imagePath) into exifArray
-   put exifArray into resultArray ["exifArray"]
-   
-   return resultArray
-end rig_AssetFetchAndSaveImage
-
-function rig_AssetImageFile shortFile
-   put rig_AssetImageFolder() & shortFile into imageFile
-   return imageFile
-end rig_AssetImageFile
-
-function rig_AssetImageFolder
-   switch the platform
-      case "MacOS"
-         return "/Users/BabyBlue/Pictures/OSCEDays Bilbao/"
-      default
-         put the defaultfolder & "/assets/img/" into imageFolder
-         return imageFolder
-   end switch
-end rig_AssetImageFolder
 
 
 --> revIgniter

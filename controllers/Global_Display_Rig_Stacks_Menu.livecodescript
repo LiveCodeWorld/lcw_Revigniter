@@ -7,80 +7,12 @@ type: controller
 version: 0.1
 
 
---> Global | Display | Rig | Stacks | Menu
+--> Menu | Props
 -
-on menu_UploadBlueLibraries indexView
-   put the displayed_Index of indexView into oIndex
-   --
-   put the coloured_Lines ["0,0,255"] of indexView into blueLines
-   set the displayed_Index ["Modified Rig Stacks"] of indexView to blueLines
-   --
-   _UploadDisplayedShortFiles blueLines, indexView
-   --
-   set the displayed_Index of indexView to oIndex
-end menu_UploadBlueLibraries
+getprop menu_IsSimple
+   return true
+end menu_IsSimple
 
-on _
-end _
-
-on menu_TestDisplayedStacks indexView
-   put the displayed_Index of indexView into shortFiles
-   rig_CheckFiles shortFiles, indexView
-end menu_TestDisplayedStacks
-
-on menu_TestRigStacks indexView
-   set the title_Text ["Stack Libraries"] of indexView to server_GetURL()
-   --
-   stack_SaveEdited "Save All"
-   display_TransporterLibs indexView
-   put the displayed_Index of indexView into shortFiles
-   --
-   rig_CheckFiles shortFiles, indexView
-end menu_TestRigStacks
-
-on _
-end _
-
-on menu_Refresh
-   display_TransporterLibs
-end menu_Refresh
-
-on menu_RevealLocalRepo
-   put rig_GetFolder ("stacks") into folderPath
-   finder_Reveal folderPath
-end menu_RevealLocalRepo
-
-on _
-end _
-
-on menu_DisplayHkeyArray indexView
-   put the title_Text of indexView into hKey
-   --
-   put hkey_GetLinkArray (hKey) into hkeyDepArray
-   display_Array hkeyDepArray, hKey
-   -- put deps_FromHkeyArray (hKey, hkeyDepArray, pReturnShortHkey) into hKeyDeps
-end menu_DisplayHkeyArray
-
-on menu_DisplayHkeyObjectArray indexView
-   put the title_Text of indexView into hKey
-   --
-   put hkey_GetLinkArray (hKey) into hkeyDepArray
-   put hkeyArray_GetDepArray (hkeyDepArray) into hkeyObjectArray
-   --
-   put hKey,"Object Array" into dTitle
-   display_Array hkeyObjectArray, dTitle
-   put the result into displayView
-   --
-   set the title_Menu of displayView to "Global | Rig | ObjectArray | Menu"
-   set the line_Menu of displayView to "Global | Rig | ObjectArray | Line | Menu"
-end menu_DisplayHkeyObjectArray
-
-
---> Global | Display | Rig | Stacks | Menu | Props
--
-
---> Global | Display | Rig | Stacks | Menu | Disabled
--
 command _UploadDisplayedShortFiles shortFiles, indexView
    -- assumes short file is names after stack name
    set the itemdelimiter to "."
@@ -123,3 +55,65 @@ command _UploadDisplayedStackNames changedRigStackNames, indexView
       end if
    end repeat
 end _UploadDisplayedStackNames
+
+
+--> Global | Display | Rig | Stacks | Menu
+-
+on menu_UploadBlueLibraries indexView
+   put the displayed_Index of indexView into oIndex
+   --
+   put the coloured_Lines ["0,0,255"] of indexView into blueLines
+   set the displayed_Index ["Modified Rig Stacks"] of indexView to blueLines
+   --
+   _UploadDisplayedShortFiles blueLines, indexView
+   --
+   set the displayed_Index of indexView to oIndex
+end menu_UploadBlueLibraries
+
+on menu_CheckScriptOnly
+   
+end menu_CheckScriptOnly
+
+on _
+end _
+
+on menu_Refresh
+   display_TransporterLibs
+end menu_Refresh
+
+on menu_RevealLocalRepo
+   put rig_GetFolder ("stacks") into folderPath
+   finder_Reveal folderPath
+end menu_RevealLocalRepo
+
+on _
+end _
+
+on submenu_Dev
+   return "Dev | Menu"
+end submenu_Dev
+
+
+--> Dev | Menu
+-
+on _DisplayHkeyArray indexView
+   put the title_Text of indexView into hKey
+   --
+   put hkey_GetLinkArray (hKey) into hkeyDepArray
+   display_Array hkeyDepArray, hKey
+   -- put deps_FromHkeyArray (hKey, hkeyDepArray, pReturnShortHkey) into hKeyDeps
+end _DisplayHkeyArray
+
+on _DisplayHkeyObjectArray indexView
+   put the title_Text of indexView into hKey
+   --
+   put hkey_GetLinkArray (hKey) into hkeyDepArray
+   put hkeyArray_GetDepArray (hkeyDepArray) into hkeyObjectArray
+   --
+   put hKey,"Object Array" into dTitle
+   display_Array hkeyObjectArray, dTitle
+   put the result into displayView
+   --
+   set the title_Menu of displayView to "Global | Rig | ObjectArray | Menu"
+   set the line_Menu of displayView to "Global | Rig | ObjectArray | Line | Menu"
+end _DisplayHkeyObjectArray

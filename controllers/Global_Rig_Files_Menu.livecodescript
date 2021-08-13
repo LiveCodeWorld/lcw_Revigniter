@@ -42,13 +42,13 @@ getprop fetchRigScript_Params
    return shortControllerFiles
 end fetchRigScript_Params
 
-getprop disabled_RevealLocalControllerFolder
-   put rig_FetchLocalControllerFolder() into someFolder
-   if there is a folder someFolder then
-      return false
-   else
-      return true
-   end if
+-- getprop disabled_RevealLocalControllerFolder
+put rig_FetchLocalControllerFolder() into someFolder
+if there is a folder someFolder then
+   return false
+else
+   return true
+end if
 end disabled_RevealLocalControllerFolder
 
 getprop disabled_CheckRemoteStack [stackObject]

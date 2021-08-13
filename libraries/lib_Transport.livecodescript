@@ -4,7 +4,7 @@
 license: GPLv3
 name: lib_Transport
 type: library
-version: 0.2
+version: 0.3
 
 /*
 This library is for creating and manipulating Transporter wiki pages.
@@ -13,48 +13,38 @@ This library is for creating and manipulating Transporter wiki pages.
 
 --> Working on
 -
-function transport_FetchFormPageArray
-   transport_SetFormSlugDomain wikiDomain, pageSlug
+function transport_GetLibraryStacks tObject
+   put the project_Name of tObject into projectName
+   if projectName is not "lcw_Controllers" then return "Error, not a transporter"
    --
-   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-   pageArray_StripJournal pageArray
-   return pageArray
-end transport_FetchFormPageArray
+   put the dep_StackNames of tObject into stackNames
+   put tObject into searchHierarchy
+   repeat for each item stackName in stackNames
+      if exists (stack stackName) is false then
+         -- project not loaded
+         breakpoint
+         next repeat
+      end if
+      put CR & the name of stack stackName after searchHierarchy
+   end repeat
+   return searchHierarchy
+end transport_GetLibraryStacks
 
-command transport_SetFormSlugDomain @wikiDomain, @pageSlug
-   put fedwiki_GetDroppedArray() into postArray
-   put postArray ["wikiDomain"] into wikiDomain
-   if wikiDomain is empty then
-      set the itemdelimiter to slash
-      put item 3 of $HTTP_REFERER into wikiDomain
-   end if
-   put postArray ["pageSlug"] into pageSlug
-   return postArray
-end transport_SetFormSlugDomain
-
-function transport_GetFormDomain 
-   put fedwiki_GetDroppedArray() into postArray
-   put postArray ["wikiDomain"] into wikiDomain
-   if wikiDomain is empty then
-      set the itemdelimiter to slash
-      put item 3 of $HTTP_REFERER into wikiDomain
-   end if
-   return wikiDomain
-end transport_GetFormDomain
-
-function transport_ListHandlers pShortFile
-   if pShortFile is empty then put display_GetSelectedTransport() into pShortFile
-   put the name of stack pShortFile into transportStack
-   --
-   put the rig_ControllerHandlers of transportStack into hNames
-   replace comma with CR in hNames
-   return hNames
-end transport_ListHandlers
+function transport_CheckRosterAuthor wikiDomainToAdd
+   -- put server_GetRemoteIP() into remoteIP
+   return true
+end transport_CheckRosterAuthor
 
 
 --> Props
 -
 getprop transport_ObjectDepArray [whichSearch]
+   put the transport_DepHkeyArray [whichSearch] of the target into hKeyArray
+   put hkeyArray_GetStackDepArray (hkeyArray) into objectDepArray
+   return objectDepArray
+end transport_ObjectDepArray
+
+getprop transport_DepHkeyArray [whichSearch]
    -- let's do a quick check that the "transport" stack is an uploaded revIgniter controller
    put the long id of the target into tObject
    put the project_Name of tObject into projectName
@@ -72,13 +62,10 @@ getprop transport_ObjectDepArray [whichSearch]
          -- the actual stacks specified by "the dep_StackNames" that will be loaded
          put transport_GetLibraryStacks (tObject) into searchObjects
    end switch
-   put the rig_ControllerHkeys of tObject into hKeys
    --
    put walk_GetObjectHkeyArray (tObject, searchObjects, false) into hKeyArray
-   put hkeyArray_GetDepArray (hkeyArray) into objectDepArray
-   --
-   return objectDepArray
-end transport_ObjectDepArray
+   return hKeyArray
+end transport_DepHkeyArray
 
 getprop transport_LibraryStacks
    -- the actual stacks that will be used when the transport controller is loaded
@@ -89,6 +76,237 @@ getprop transport_LibraryStacks
    put transport_GetLibraryStacks (tObject) into depStackObjects
    return depStackObjects
 end transport_LibraryStacks
+
+
+--> Roster | PageArray
+-
+function transport_FetchEmptyRosterPageArray rosterName, pTemplateWikiDomain
+   if pTemplateWikiDomain is empty then put "rest.livecode.world" into pTemplateWikiDomain
+   --
+   put fedwiki_ConstructSlug (rosterName) into rosterTemplateSlug
+   put pageArray_Fetch (pTemplateWikiDomain, rosterTemplateSlug) into pageArray
+   -- pageArray_CleanFork pageArray, pForkDomains
+   --
+   pageArray_SetRoster pageArray, empty, rosterName
+   return pageArray
+end transport_FetchEmptyRosterPageArray
+
+function transport_FetchRosterPageArray rosterName, pWikiDomainToAdd, pTemplateWikiDomain
+   if transport_CheckRosterAuthor (pWikiDomainToAdd) is false then
+      return empty
+   end if
+   if pTemplateWikiDomain is empty then put "rest.livecode.world" into pTemplateWikiDomain
+   --
+   put fedwiki_ConstructSlug (rosterName) into rosterTemplateSlug
+   put pageArray_Fetch (pTemplateWikiDomain, rosterTemplateSlug) into pageArray
+   if pageArray is empty then
+      return empty
+   else
+      pageArray_AddToRoster pageArray, pWikiDomainToAdd
+      return pageArray
+   end if
+end transport_FetchRosterPageArray
+
+function transport_ConstructUpdatePageArray lastUpdatedSeconds, postArray
+   -- "scrape-report.json"
+   put "Scrape Report" into pageTitle
+   put server_GetRemoteIP() into remoteIP
+   put server_GetRemoteMethod() into sMethod
+   --
+   if lastUpdatedSeconds is empty then put the seconds into lastUpdatedSeconds
+   convert lastUpdatedSeconds to internet date
+   put postArray ["index"]["counts"] into scanNum
+   if scanNum is empty then put "?" into scanNum
+   put postArray ["index"]["sites"] into siteNum
+   if siteNum is empty then put "an unknown number of" into siteNum
+   put postArray ["index"]["slugs"] into slugNum
+   put postArray ["scan"]["pages"] into scanPageNum
+   put postArray ["scan"]["sites"] into scanSiteNum
+   --
+   put merge ("Thanks for update [[scanNum]] on [[lastUpdatedSeconds]]. That makes [[siteNum]] sites indexed to date.") into someMarkdown
+   put pageArray_Construct (pageTitle, someMarkdown) into pageArray
+   --
+   put merge ("We received a [[sMethod]] event from the following ip address:") into someMarkdown
+   pageArray_AddMarkdown pageArray, someMarkdown
+   pageArray_AddCode pageArray, remoteIP
+   --
+   pageArray_AddMarkdown pageArray, "We received the following webhook $_POST_RAW:"
+   put sMethod & ":" && $_POST_RAW into postMarkDown
+   pageArray_AddMarkdown responseArray, postMarkDown
+   --
+   pageArray_AddMarkdown responseArray, "Here is the raw data we received from the webhook:"
+   pageArray_AddMarkdown pageArray, $_POST_RAW
+   --
+   pageArray_AddMarkdown pageArray, "We will return more useful data here at a later date."
+   return pageArray
+end transport_ConstructUpdatePageArray
+
+
+--> Server
+-
+function server_GetRemoteMethod
+   -- REQUEST_METHOD POST
+   put $_SERVER ["REQUEST_METHOD"] into remoteMethod
+   return remoteMethod
+end server_GetRemoteMethod
+
+function server_GetRemoteIP
+   -- REMOTE_ADDR 92.237.8.154
+   put $_SERVER ["REMOTE_ADDR"] into remoteIP
+   return remoteIP
+end server_GetRemoteIP
+
+function server_GetRemotePort
+   -- REMOTE_PORT 50713
+   put $_SERVER ["REMOTE_PORT"] into remotePort
+   return remotePort
+end server_GetRemotePort
+
+function server_GetRequestMethod
+   -- REQUEST_METHOD POST
+   put $_SERVER ["REQUEST_METHOD"] into requestMethod
+   return requestMethod
+end server_GetRequestMethod
+
+function server_GetDocumentRoot
+   put $_SERVER ["DOCUMENT_ROOT"] into docROOT
+   return docROOT
+end server_GetDocumentRoot
+
+function server_GetCgiPath shortFile
+   put $_SERVER ["PATH_TRANSLATED"] into pathTranslated
+   --
+   set the itemdelimiter to slash
+   put pathTranslated into textPath
+   put shortFile into item -1 of textPath
+   --
+   return textPath
+end server_GetCgiPath
+
+
+--> Transport | File | Write
+-
+command transport_CopyWikiPage pageTitle, wikiDomain, pNewTitle, pForkDomains
+   -- transport_CopyWikiPage "Register Sites Template", "roster.fedwiki.org"
+   put pageArray_FetchByTitle (wikiDomain, pageTitle) into pageArray
+   pageArray_Rename pageArray, pNewTitle, pForkDomains
+   --
+   transport_StorePageArray pageArray
+   put the result into jsonPath
+   return jsonPath
+end transport_CopyWikiPage
+
+command transport_StorePageArray pageArray, pWikiDomain
+   -- Should use a password
+   put pageArray ["title"] into pageTitle
+   if pageTitle is empty then
+      -- don't write if the array is not a pageArray
+      return empty
+   end if
+   
+   put fedwiki_ConstructSlug (pageTitle) into pageSlug
+   put pageSlug & ".json" into  shortFile
+   --
+   put json_FromArray (pageArray) into pageJSON
+   transport_WriteFile shortFile, pageJSON, pWikiDomain
+   put the result into jsonPath
+   return jsonPath
+end transport_StorePageArray
+
+command transport_WriteFile shortFile, someText
+   rigLoadHelper "file"
+   --
+   put transport_GetJsonPath (shortFile) into jsonPath
+   --
+   put "./" & shortFile into relativeFile
+   if rigWriteFile (relativeFile, someText) is FALSE then
+      put "Error, could not write file" & CR&CR & jsonPath into errorMsg
+      return errorMsg
+   else
+      return jsonPath
+   end if
+   
+   /*
+   -- non rigLoadHelper version
+   put transport_GetJsonPath (shortFile, pWikiDomain) into jsonPath
+   put pageJSON into url ("file:" & jsonPath)
+   put the result into tResult
+   if tResult is empty then
+      return jsonPath
+   else
+      put "Error," && tResult & CR&CR & jsonPath into errorMsg
+      return errorMsg
+   end if
+   */
+end transport_WriteFile
+
+function transport_GetJsonPath shortFile
+   -- DOCUMENT_ROOT /var/www/rest.livecode.world
+   -- HTTP_HOST rest.livecode.world
+   
+   put server_GetDocumentRoot() into jsonPath
+   put slash & shortFile after jsonPath
+   return jsonPath
+end transport_GetJsonPath
+
+
+--> Transport | Form
+-
+function transport_GetFormValue someKey
+   put fedwiki_GetDroppedArray() into postArray
+   put postArray [someKey] into someValue
+   return someValue
+end transport_GetFormValue
+
+function transport_FetchFormPageArray
+   transport_SetFormSlugDomain wikiDomain, pageSlug
+   --
+   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
+   pageArray_StripJournal pageArray
+   return pageArray
+end transport_FetchFormPageArray
+
+command transport_SetFormTitleDomain @wikiDomain, @pageTitle
+   put fedwiki_GetDroppedArray() into postArray
+   put postArray ["wikiDomain"] into wikiDomain
+   if wikiDomain is empty then
+      set the itemdelimiter to slash
+      put item 3 of $HTTP_REFERER into wikiDomain
+   end if
+   put postArray ["pageTitle"] into pageTitle
+   return postArray
+end transport_SetFormTitleDomain
+
+command transport_SetFormSlugDomain @wikiDomain, @pageSlug
+   put fedwiki_GetDroppedArray() into postArray
+   put postArray ["wikiDomain"] into wikiDomain
+   if wikiDomain is empty then
+      set the itemdelimiter to slash
+      put item 3 of $HTTP_REFERER into wikiDomain
+   end if
+   put postArray ["pageSlug"] into pageSlug
+   return postArray
+end transport_SetFormSlugDomain
+
+function transport_GetFormDomain 
+   put transport_GetFormValue ("wikiDomain") into wikiDomain
+   if wikiDomain is empty then
+      set the itemdelimiter to slash
+      put item 3 of $HTTP_REFERER into wikiDomain
+   end if
+   return wikiDomain
+end transport_GetFormDomain
+
+function transport_ListHandlers pShortFile
+   if pShortFile is empty then put display_GetSelectedTransport() into pShortFile
+   if exists (stack pShortFile) is false then return empty
+   --
+   put the name of stack pShortFile into transportStack
+   --
+   put the rig_ControllerHandlers of transportStack into hNames
+   replace comma with CR in hNames
+   return hNames
+end transport_ListHandlers
 
 
 --> Transport
@@ -107,85 +325,6 @@ command transport_Upload tObject
    put the result into shellResult
    return shellResult
 end transport_Upload
-
-command transport_FindUpdateObjectDepArray @objectDepArray, searchObjects
-   put objectDepArray ["Missing"] into missingArray
-   delete variable objectDepArray ["Missing"]
-   --
-   put the keys of missingArray into missingShortHkeys
-   replace " of Missing" with empty in missingShortHkeys
-   --
-   put transport_FindMissingObjectDepArray (missingShortHkeys, searchObjects) into foundMissingObjectDepArray
-   union objectDepArray with foundMissingObjectDepArray recursively
-   --
-   return foundMissingObjectDepArray
-end transport_FindUpdateObjectDepArray
-
-function transport_FindMissingObjectDepArray missingShortHkeys, searchObjects 
-   -- _FilterReviniter missingShortHkeys
-   -- put the result into missingRigHkeys
-   
-   -- lets find all the missingHkeys
-   repeat for each line missingShortHkey in missingShortHkeys
-      if char 1 to 3 of word 2 of missingShortHkey = "rig" then
-         put empty into foundMissingHkeyArray ["revIgniter"][missingShortHkey]
-         next repeat
-      end if
-      
-      put hkey_PublicFind (missingShortHkey, searchObjects) into foundMissingHkey
-      switch
-         case foundMissingHkey is empty
-            put "Still Missing" into cantFindArray [missingShortHkey]
-            break
-         default
-            put empty into foundMissingHkeyObjectArray ["found"][foundMissingHkey]
-      end switch
-   end repeat
-   put the keys of foundMissingHkeyObjectArray ["found"] into foundMissingHkeys
-   
-   -- now lets recursively find the dependencies of each of the foundHkeys
-   put hkey_SearchHierarchyDependencyArray (foundMissingHkeys, searchObjects, true) into stillMissingHKeyArray
-   put hkeyArray_GetDepArray (stillMissingHKeyArray) into stillMissingObjectDepArray 
-   --
-   put stillMissingObjectDepArray ["Missing"] into foundStillMissingHkeyArray
-   union foundStillMissingHkeyArray with cantFindArray
-   put the keys of foundStillMissingHkeyArray into foundStillMissingHkeys
-   --
-   _FilterReviniter foundStillMissingHkeys
-   put the result into stillMissingRigHkeys
-   --
-   -- split missingRigHkeys by CR as set
-   put foundMissingHkeyArray ["revIgniter"] into missingRigHkeys
-   split stillMissingRigHkeys by CR as set
-   union missingRigHkeys with stillMissingRigHkeys
-   --
-   if the keys of missingRigHkeys is not empty then
-      put missingRigHkeys into stillMissingObjectDepArray ["revIgniter"]
-   end if
-   --
-   if foundStillMissingHkeys is not empty then
-      split foundStillMissingHkeys by CR as set
-      put foundStillMissingHkeys into stillMissingObjectDepArray ["Missing"]
-   end if
-   --
-   return stillMissingObjectDepArray
-end transport_FindMissingObjectDepArray
-
-function transport_GetLibraryStacks tObject
-   put the project_Name of tObject into projectName
-   if projectName is not "lcw_Controllers" then return "Error, not a transporter"
-   --
-   put the dep_StackNames of tObject into stackNames
-   put tObject into searchHierarchy
-   repeat for each item stackName in stackNames
-      if exists (stack stackName) is false then
-         breakpoint
-         next repeat
-      end if
-      put CR & the name of stack stackName after searchHierarchy
-   end repeat
-   return searchHierarchy
-end transport_GetLibraryStacks
 
 function transport_ListServerLibraryStacks
    put transport_FetchLibraryStackArray() into resultArray
@@ -260,34 +399,6 @@ end transporter_ConstructDroppedJSON
 
 --> Transport | Check
 -
-function transport_ListMissingHkeys sObject
-   transport_CollectCalls sObject, callObjectArray, missingArray, revIgniterArray
-   put keys (missingArray) into mKeys
-   repeat for each line mKey in mKeys
-      put word 1 to 2 of mKey into shortMissing
-      put shortMissing & CR after missingHkeys
-   end repeat
-   delete char -1 of missingHkeys
-   return missingHkeys
-end transport_ListMissingHkeys
-
-command transport_CollectCalls sObject, @callObjectArray, @missingArray, @revIgniterArray
-   put the rig_ControllerHkeys of sObject into hKeys
-   repeat for each line hKey in hKeys
-      put hkey_GetLinkArray (hKey) into hkeyLinkArray
-      hkeyArray_SetObjectArray callObjectArray, hkeyLinkArray
-   end repeat
-   
-   put revRuggedID (sObject) into sObject
-   delete variable callObjectArray [sObject]
-   put callObjectArray ["Missing"] into missingArray
-   delete variable callObjectArray ["Missing"]
-   put callObjectArray ["revIgniter"] into revIgniterArray
-   delete variable callObjectArray ["revIgniter"]
-   put keys (callObjectArray) into depStacks
-   return depStacks
-end transport_CollectCalls
-
 command transporter_CreateGraph hObject, pDisplayGraphs, pForceReIndex
    put the behavior of hObject into oBehavior
    set the behavior of hObject to empty
@@ -363,215 +474,8 @@ command transport_UpdatePageGraph @pageArray, hKey
 end transport_UpdatePageGraph
 
 
---> Tranport | Help
--
-command transport_CreateHelp hKey, pScriptHelp
-   _TransportInfo hKey, wikiDomain, pageTitle, pageSlug, hObject
-   if the result = "index" then
-      put _TransportHkeyCurlyData (hKey) into curlyData
-      help_Create pageTitle, "transport", curlyData, pScriptHelp
-   else
-      -- updates "Welcome Visitors" every time! Could check.
-      transport_CreateRouteWelcomeHelp hKey
-      transport_CreateRouteHelp hKey
-   end if
-   put the result into shellResult
-   return shellResult
-end transport_CreateHelp
-
-command transport_CreateRouteWelcomeHelp routeHkey
-   hkey_Normalize routeHkey
-   put routeHkey into indexHkey
-   put "index" into word 2 of indexHkey
-   _TransportInfo indexHkey, indexDomain, indexTitle, indexSlug, iObject   
-   _TransportInfo routeHkey, rootDomain, routeTitle, routeSlug, rObject
-   
-   -- check Welcome-visitors for subdomain
-   put transport_FetchPageArray (indexHkey) into pageArray
-   switch
-      case pageArray is empty
-         breakpoint -- Welcome-visitors for subdomain does not exist. Let's create it
-         break
-      case pageArray ["title"] is not indexTitle
-         breakpoint -- 
-         
-         help_Create indexTitle, "transport", curlyData, pScriptHelp
-         put the result into pageArray
-         if pageArray is not an array then
-            breakpoint
-            return empty
-         end if
-         
-         pageArray_Rename pageArray, "Welcome Visitors"
-         pageArray_StripJournal pageArray
-         pageArray_AddFork pageArray, "transport.livecode.world,handler.livecode.world,library.livecode.world,model.livecode.world,fedwiki.org"
-         break
-      default
-         breakpoint -- Welcome-visitors for subdomain already exists so let's update metadata
-         
-         put pageArray_Fetch (rootDomain, "welcome-visitors") into pageArray -- get old subpage welcome
-         put _TransportHkeyCurlyData (indexHkey) into curlyData -- update with latest index.lc metadata
-         curly_MergePageArray pageArray, curlyData
-   end switch
-   --
-   pageArray_Store rootDomain, "welcome-visitors", pageArray
-   return pageArray
-end transport_CreateRouteWelcomeHelp
-
-command transport_CreateRouteHelp hKey
-   put _TransportHkeyCurlyData (hKey) into curlyData
-   _TransportInfo hKey, wikiDomain, pageTitle, pageSlug, hObject
-   --
-   put pageArray_Fetch ("transport.livecode.world", "transport-route-template") into pageArray
-   pageArray_Rename pageArray, pageTitle
-   --
-   curly_MergePageArray pageArray, curlyData
-   pageArray_StripJournal pageArray
-   pageArray_AddFork pageArray, "transport.livecode.world,handler.livecode.world,library.livecode.world,model.livecode.world,fedwiki.org"
-   --
-   pageArray_Store wikiDomain, pageSlug, pageArray
-   put the result into shellResult
-   return shellResult
-end transport_CreateRouteHelp
-
-command transport_UpdateHelp hKey
-   put transport_FetchPageArray (hKey) into pageArray
-   put _TransportHkeyCurlyData (hKey) into curlyData
-   curly_MergePageArray pageArray, curlyData
-   transport_StorePageArray hKey, pageArray
-end transport_UpdateHelp
-
-function transport_HelpURL hKey, pCheckURL
-   _TransportInfo hKey, wikiDomain, pageTitle, pageSlug, hObject
-   if pCheckURL is true then
-      put fedwiki_IsWikiPage (wikiDomain, pageSlug) into isWiki
-      if isWiki is false then
-         return empty
-      end if
-   end if
-   put fedwiki_ConstructUrlFromSlug (wikiDomain, pageSlug) into someURL
-   return someURL
-end transport_HelpURL
-
-function transport_IndexHkey hObject
-   put hKeyLine_Construct ("index", "c", hObject) into hKey
-   return hKey
-end transport_IndexHkey
-
-function transport_IndexDotText hObject
-   put transport_IndexHkey (hObject) into hKey
-   put hkey_GetDotText (hKey) into dotText
-   return dotText   
-end transport_IndexDotText
-
-
---> Transport | Model
--
-function transport_FetchPageArray hKey
-   _TransportInfo hKey, wikiDomain, pageTitle, pageSlug, hObject
-   put pageArray_Fetch (wikiDomain, pageSlug) into pageArray
-   return pageArray
-end transport_FetchPageArray
-
-command transport_StorePageArray hKey, pageArray
-   _TransportInfo hKey, wikiDomain, pageTitle, pageSlug, hObject
-   pageArray_Store wikiDomain, pageSlug, pageArray
-   put the result into shellResult
-   return shellResult
-end transport_StorePageArray
-
-
 --> Private
 -
-private command _FilterReviniter @stillMissingHkeys
-   put stillMissingHkeys into revIgniterHkeys
-   filter revIgniterHkeys with "* rig*"
-   filter stillMissingHkeys without "* rig*"
-   return revIgniterHkeys
-end _FilterReviniter
-
-function _OldRawJson displayHow
-   switch displayHow
-      case "Stored Json"
-         put the transporter_RawJSON of _fieldObject() into dropJSON
-         put test_ExtractDroppedUrl (dropJSON) into droppedURL
-         return droppedURL
-      default
-         put the selectedtext of _fieldObject() into droppedURL
-         return droppedURL
-   end switch
-end _OldRawJson
-
-private function _TransportHkeyCurlyData hKey
-   put help_HkeyCurlyData (hKey) into curlyData
-   --
-   _TransportInfo hKey, wikiDomain, pageTitle, pageSlug, hObject
-   put the result into hName
-   put hName into curlyData ["all"]["hName"]
-   put pageTitle into curlyData ["all"]["transportName"]
-   --
-   _SetTransportMetadata curlyData, hKey
-   _SetCurlyRestURL curlyData, hObject, hName
-   _SetCurlyTransportRoutes curlyData, hObject
-   _SetTransportWhere curlyData, hKey
-   --
-   return curlyData
-end _TransportHkeyCurlyData
-
-private command _SetTransportWhere @curlyData, hKey
-   _TransportInfo hKey, wikiDomain, pageTitle, pageSlug, hObject
-   put storyArray_ConstructReference (pageSlug, wikiDomain, wikiDomain, pageTitle) into itemArray
-   curly_SetReplaceArray curlyData, itemArray, "4ecda1442570d900"
-end _SetTransportWhere
-
-private function _TransportObjectCurlyData sObject
-   put the github_HandlerURL [shortHkey] of sObject && "github" into githubLink
-   put githubLink into curlyData ["all"]["github link"]
-   --
-   _SetCurlyRestURL curlyData, sObject
-   --
-   put the dep_StackNames of sObject into depStackNames
-   put fedwiki_MarkdownIndex (depStackNames) into curlyData ["all"]["Deps List"]
-   --
-   put transport_IndexDotText (hObject) into dotText
-   --
-   return curlyData
-end _TransportObjectCurlyData
-
-private command _SetTransportMetadata @curlyData, hKey
-   put hkey_GetType (hKey) into handlerType
-   hkey_Deconstruct hKey, hName, hType, hObject, hNum
-   put the github_RelativePath of hObject into relPath
-   --
-   put "Type: transport" & CR after handlerMetaData
-   put "Project:" && the project_Name of hObject & CR after handlerMetaData
-   put "Github:" && relPath & CR after handlerMetaData
-   delete char -1 of handlerMetaData
-   --
-   put handlerMetaData into curlyData ["id"]["da8cf69872f38050"]
-end _SetTransportMetadata
-
-private command _SetCurlyTransportRoutes @curlyData, sObject
-   put the rig_ControllerHandlers of sObject into handlerNames
-   replace comma with CR in handlerNames
-   line_Delete "index", handlerNames
-   if handlerNames is not empty then
-      put fedwiki_MarkdownIndex (handlerNames) into curlyData ["id"]["642e249b4a7faa02"]
-   end if
-end _SetCurlyTransportRoutes
-
-private command _SetCurlyRestURL @curlyData, sObject, hName
-   put the stack_Name of sObject into stackName
-   set the itemdelimiter to "."
-   put item 1 of stackName into shortFile
-   put "https://rest.livecode.world/" & shortFile into restURL
-   if hName is not "index" then
-      put slash & hName after restURL
-   end if
-   put "POST" && restURL into curlyData ["id"]["10ea2af363e51a5f"]
-   put restURL into curlyData ["all"]["restURL"]
-end _SetCurlyRestURL
-
 private command _TransportInfo hKey, @wikiDomain, @pageTitle, @pageSlug, @hObject
    put "transport.livecode.world" into wikiDomain
    --
