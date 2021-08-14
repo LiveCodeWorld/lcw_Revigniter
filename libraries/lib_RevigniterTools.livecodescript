@@ -143,6 +143,13 @@ end rig_ConstructGetProp
 
 --> Rig | rigScript
 -
+getprop rig_RouteNames
+   put the script_HandlerNames ["M"] of the target into routeNames
+   filter routeNames without "_*"
+   replace "mouseUp" with "index" in routeNames
+   return routeNames
+end rig_RouteNames
+
 getprop rig_ControllerHandlers   
    put the script of the target into someScript
    put the revAvailableHandlers of the target into handlerTable

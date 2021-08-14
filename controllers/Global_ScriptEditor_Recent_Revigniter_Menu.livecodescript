@@ -214,63 +214,67 @@ end submenu_Dev
 
 --> Dev | Menu
 -
-on menu_EditTemporaryBehavior scriptObject
-   edit the script of stack "behavior_RigLocalOveride"
-end menu_EditTemporaryBehavior
+on _Test scriptObject
+   put the handler_PermaMarkdown of scriptObject & CR & CR & the menu_PermalinkMarkdown [true] of scriptObject
+end _Test
 
-on menu_SetTemporaryBehavior scriptObject, someBoolean
+on _EditTemporaryBehavior scriptObject
+   edit the script of stack "behavior_RigLocalOveride"
+end _EditTemporaryBehavior
+
+on _SetTemporaryBehavior scriptObject, someBoolean
    rig_SetOveride someBoolean
-end menu_SetTemporaryBehavior
+end _SetTemporaryBehavior
 
 on _
 end _
 
-on menu_DisplayObjectGraph scriptObject
+on _DisplayObjectGraph scriptObject
    display_CreateScriptObjectGraph scriptObject
    --
    display_ObjectDepArray scriptObject
-end menu_DisplayObjectGraph
+end _DisplayObjectGraph
 
-on menu_RevealSvg scriptObject
+on _RevealSvg scriptObject
    put the overlay_Folder of scriptObject into overlayFolder
    finder_Reveal overlayFolder
-end menu_RevealSvg
+end _RevealSvg
 
-on menu_DisplaySvgView
+on _DisplaySvgView
    put "View|ScriptEditor|SVG" into viewName
    display_View viewName
-end menu_DisplaySvgView
+end _DisplaySvgView
 
 on _
 end _
 
-on menu_EditStackScript scriptObject
+on _EditStackScript scriptObject
    put the stack_Object of scriptObject into stackObject
    edit the script of stackObject
-end menu_EditStackScript
+end _EditStackScript
 
-on menu_EditStackBehavior scriptObject
+on _EditStackBehavior scriptObject
    put the stack_Object of scriptObject into stackObject
    put the behavior of stackObject into bObject
    edit the script of bObject   
-end menu_EditStackBehavior
+end _EditStackBehavior
 
 on _
 end _
 
-on menu_SwitchServer stackObject, serverURL
+on _SwitchServer stackObject, serverURL
    server_SetURL serverURL
    lcw_Notify server_GetIPaddress()
    display_RigControllerArray
-end menu_SwitchServer
+end _SwitchServer
 
-on menu_ForceLoadServerArray
+on _ForceLoadServerArray
    put server_FetchPrefArray() into serverArray
    put serverArray into LocalArray ["serverArray"]
    put keys (serverArray) into LocalArray ["serverURLs"]
    
    server_SetURL "rest.livecode.world"
-end menu_ForceLoadServerArray
+end _ForceLoadServerArray
 
 
 --> Dev | Menu | Props
