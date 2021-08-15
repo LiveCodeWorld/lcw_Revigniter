@@ -62,9 +62,6 @@ on submenu_HelpMenu
    return "Global | Hkey | Help | Menu"
 end submenu_HelpMenu
 
-on _
-end _
-
 on menu_TestLocalTransporter
    _SetHkeyInfo hName, rigStackObject, shortController
    --
@@ -85,7 +82,7 @@ on menu_TestRemoteTransport
    --
    if pageJSON is empty then
       display_DebugHistory "menu_TestRemoteTransport"
-      lcw_AnswerWarning "No josn returned!"
+      lcw_AnswerWarning "No json returned!"
    end if
    
    -- got some JSON

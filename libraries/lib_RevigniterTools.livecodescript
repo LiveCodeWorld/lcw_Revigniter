@@ -29,7 +29,7 @@ function rig_ConstructDepScriptLines shortLibPaths, pOldWay
    --
    replace CR with comma in shortLibPaths
    repeat for each item shortController in shortLibPaths
-      if pOldWay is true then
+      if pOldWay is not false then
          -- start using stack (gRigA["APPPATH"] & "stacks/lib_Fedwiki.livecode")
          put "stacks/" & shortController into relPath
          put "start using stack (gRigA[" & kwote("APPPATH") & "] &" && kwote(relPath) & ")" into scriptLine
@@ -46,9 +46,10 @@ function rig_ConstructDepScriptLines shortLibPaths, pOldWay
                next repeat
             default
                put "rigLoadStack" && kwote(stackName) into scriptLine
-               put CR & scriptLine after scriptLines
          end switch
       end if
+      --
+      put CR & scriptLine after scriptLines
    end repeat
    delete char 1 of scriptLines
    return scriptLines
@@ -280,7 +281,7 @@ end rig_CreateContainerScript
 
 function rig_ConstructControllerScript scriptObject, shortController, pDepShortPaths, pScriptDescription
    if pScriptDescription is empty then
-      put the script_Markdown of scriptObject into pScriptDescription
+      put the script_Help of scriptObject into pScriptDescription
    end if
    if pDepShortPaths is empty then
       -- put the dep_ControllerLibs of scriptObject into pDepShortPaths
@@ -321,7 +322,7 @@ function rig_ConstructControllerFromScript controllerScript, shortControllerFile
    end if
    
    put shortControllerFile into pathToController
-   put rig_ConstructDepScriptLines (pShortDepLibFiles, "   ") into initScriptLines -- was rig_ConstructInitScriptLines
+   put rig_ConstructDepScriptLines (pShortDepLibFiles) into initScriptLines -- was rig_ConstructInitScriptLines
    text_Indent initScriptLines, "      "
    --
    put rig_FilterControllerScript (controllerScript, hTable) into publicHandlers
@@ -400,14 +401,13 @@ private command _StripInitCommand @rigScript, cName
       -- was start using stack (gAPPPATH & "stacks/lib_HTML.livecode")
       -- start using stack (gRigA["APPPATH"] & "stacks/lib_Fedwiki.livecode")
       
+      -- put token 2 of it into stackName -- for rigLoadStack "lib_Audioboom"
       put token -2 of it into pathBit
-      --
       set the itemdelimiter to slash
       put item -1 of pathBit into shortControllerFile
-      
-      -- bit of a hack
       set the itemdelimiter to "."
       put item 1 of shortControllerFile into stackName
+      
       put stackName & CR after stackNames
       if there is a stack stackName then
          put the filename of stack stackName into stackPath

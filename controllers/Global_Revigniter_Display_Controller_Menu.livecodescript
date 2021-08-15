@@ -98,7 +98,7 @@ end submenu_Dev
 
 --> Dev | Menu
 -
-on menu_ProcessAllControllers displayView
+on _ProcessAllControllers displayView
    put the displayed_Index of displayView into shortControllers
    repeat for each line shortController in shortControllers
       display_Spin shortController, displayView
@@ -110,36 +110,36 @@ on menu_ProcessAllControllers displayView
       transport_Upload stackObject
       put the result into shellResult
    end repeat
-end menu_ProcessAllControllers
+end _ProcessAllControllers
 
-on menu_TestTerminal
+on _TestTerminal
    terminal_PasteScript "ls -la"
    put the result
-end menu_TestTerminal
+end _TestTerminal
 
-on menu_NewTerminalTab
+on _NewTerminalTab
    terminal_PasteInNewTab "ls -la"
    put the result
-end menu_NewTerminalTab
+end _NewTerminalTab
 
 on _
 end _
 
-on menu_TestCertificates
+on _TestCertificates
    put "./tmp/certbot-auto certificates" into sCommand
    ssh_DoRemoteShell "root", "rest.livecode.world", sCommand
    put the result
-end menu_TestCertificates
+end _TestCertificates
 
-on menu_UpdateLetsEncrypt
+on _UpdateLetsEncrypt
    put "./tmp/certbot-auto certificates" into remoteShell
    --
    put ssh_ConstructRemoteShell (remoteShell, "rest.livecode.world", "root")
-end menu_UpdateLetsEncrypt
+end _UpdateLetsEncrypt
 
 on _
 end _
 
-on menu_EditTransportOverride
+on _EditTransportOverride
    edit the script of stack "behavior_RigLocalOveride"
-end menu_EditTransportOverride
+end _EditTransportOverride

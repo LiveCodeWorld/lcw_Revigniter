@@ -172,40 +172,12 @@ on menu_UploadTransportLibrary scriptObject
    end if
 end menu_UploadTransportLibrary
 
-on menu_ListScriptDeps sObject
-   display_ScriptDeps sObject
-end menu_ListScriptDeps
-
 on menu_ScriptTools sObject
    display_Script sObject
 end menu_ScriptTools
 
 on _
 end _
-
-on menu_LaunchGithub sObject
-   put the stack_Name of sObject into stackName
-   github_LaunchStack stackName
-end menu_LaunchGithub
-
-on menu_DisplayGitStatus sObject
-   display_GitStatus sObject
-end menu_DisplayGitStatus
-
-on menu_DisplayTransportLibs scriptObject
-   display_TransporterstackLibs scriptObject
-end menu_DisplayTransportLibs
-
-on _
-end _
-
-on submenu_Ide
-   return "Global | IDE | Menu"
-end submenu_Ide
-
-on submenu_SetIdeBehavior
-   return "Global | ScriptEditor | Behavior | Menu"
-end submenu_SetIdeBehavior
 
 on submenu_Dev
    return "Dev | Menu"
@@ -214,6 +186,34 @@ end submenu_Dev
 
 --> Dev | Menu
 -
+on _ListScriptDeps sObject
+   display_ScriptDeps sObject
+end _ListScriptDeps
+
+on _LaunchGithub sObject
+   put the stack_Name of sObject into stackName
+   github_LaunchStack stackName
+end _LaunchGithub
+
+on _DisplayGitStatus sObject
+   display_GitStatus sObject
+end _DisplayGitStatus
+
+on _DisplayTransportLibs scriptObject
+   display_TransporterstackLibs scriptObject
+end _DisplayTransportLibs
+
+on _
+end _
+
+on _Ide
+   return "Global | IDE | Menu"
+end _Ide
+
+on _SetIdeBehavior
+   return "Global | ScriptEditor | Behavior | Menu"
+end _SetIdeBehavior
+
 on _Test scriptObject
    put the handler_PermaMarkdown of scriptObject & CR & CR & the menu_PermalinkMarkdown [true] of scriptObject
 end _Test

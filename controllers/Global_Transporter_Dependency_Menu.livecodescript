@@ -97,7 +97,7 @@ on menu_FindMissing displayView
    set the displayed_Data of displayView to objectDepArray
    -- set the stack_Label of displayView to "Environment Transport Deps"
    --
-   menu_DisplayGetpropHandler displayView
+   _DisplayGetpropHandler displayView
 end menu_FindMissing
 
 on menu_UpdateTransport displayView
@@ -114,7 +114,7 @@ on menu_UpdateTransport displayView
       lcw_Answer "Uploaded transporter '[[shortFile]]. Do you want to check the libs?", displayView, shortFile
    end if
    --
-   menu_DisplayTransportLibs
+   menu_CheckTransportLibs
 end menu_UpdateTransport
 
 on menu_CreateTransporterGraphs displayView

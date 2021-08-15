@@ -86,14 +86,13 @@ command display_Transporters pDisplayArray
       put rig_ListControllerFiles() into sData
    end if
    --   
-   display_Tools sData, "rest.livecode.world", "Revigniter | Display | Controller", "Transporters"
+   display_Tools sData, "rest.livecode.world", "Revigniter | Display | Controller", "Transporters" --, "lcw_Revigniter"
    put the result into displayView
    --
    return displayView
 end display_Transporters
 
 on mDoubleUp_RevigniterDisplayController dView shortFile
-   breakPoint
    rig_EditController shortFile
 end mDoubleUp_RevigniterDisplayController
 
