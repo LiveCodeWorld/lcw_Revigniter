@@ -30,8 +30,9 @@ end menu_IsSimple
 
 getprop menu_Target [tObject]
    put the display_View of tObject into displayView
-   put the displayed_Data of displayView into LocalArray ["dataArray"]
+   if exists (displayView) is false then return empty
    --
+   put the displayed_Data of displayView into LocalArray ["dataArray"]
    return displayView
 end menu_Target
 
