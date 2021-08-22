@@ -29,8 +29,13 @@ getprop menu_IsSimple
 end menu_IsSimple
 
 getprop menu_Target [tObject]
+   if exists (tObject) is false then
+      return empty
+   end if
    put the display_View of tObject into displayView
-   if exists (displayView) is false then return empty
+   if exists (displayView) is false then
+      return empty
+   end  if
    --
    put the displayed_Data of displayView into LocalArray ["dataArray"]
    return displayView
