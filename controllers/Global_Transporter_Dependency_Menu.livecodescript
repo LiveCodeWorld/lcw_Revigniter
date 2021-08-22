@@ -25,9 +25,11 @@ getprop menu_Target [tObject]
    --
    put the displayed_HkeyArray of displayView into hKeyArray
    put the displayed_SearchType of displayView into pWhichSearch
-   put the displayed_Transport of displayView into transportStack
    --
+   put the displayed_Transport of displayView into transportStack
+   put the displayed_Object of displayView into transportStack 
    put the title_Text of displayView into transportStack
+   --
    put the displayed_Array of displayView into objectDepArray
    --
    put transportStack into LocalArray ["transportStack"]
@@ -95,9 +97,8 @@ on menu_FindMissing displayView
    put env_ScriptHierarchy (true) into searchObjects
    scriptMissing_FindAndUpdate objectDepArray, searchObjects
    set the displayed_Data of displayView to objectDepArray
-   -- set the stack_Label of displayView to "Environment Transport Deps"
    --
-   _DisplayGetpropHandler displayView
+   menu_DisplayGetpropHandler displayView
 end menu_FindMissing
 
 on menu_UpdateTransport displayView
@@ -116,12 +117,6 @@ on menu_UpdateTransport displayView
    --
    menu_CheckTransportLibs
 end menu_UpdateTransport
-
-on menu_CreateTransporterGraphs displayView
-   put _GetTransportStack (displayView) into tStack
-   --
-   transporter_CreateGraph tStack, true, true
-end menu_CreateTransporterGraphs
 
 on _
 end _
@@ -180,6 +175,21 @@ on menu_CheckTransportLibs
    end if
 end menu_CheckTransportLibs
 
+on menu_DisplayGetpropHandler displayView
+   put the title_Text of displayView into tObject
+   put the displayed_Data of displayView into objectDepArray
+   --
+   display_TransportGetpropIfNeeded tObject, objectDepArray
+   put the result into someError
+   if item 1 of the result is "error" then
+      lcw_AnswerWarning someError, displayView
+   else
+      put someError into getpropDisplayView
+      lcw_Answer "The scripts 'getprop dep_StackNames' handler is not correct. Please update script.", getpropDisplayView
+      edit the script of tObject
+   end if
+end menu_DisplayGetpropHandler
+
 on menu_Refresh displayView
    put the title_Text of displayView into tObject
    put the stack_Label of displayView into pHow
@@ -194,6 +204,23 @@ end submenu_Dev
 
 --> Dev | Menu
 -
+on submenu_GraphObject
+   return "Global | Tree | HkeyArray | Graph | Create | Menu"
+end submenu_GraphObject
+
+on menu_DisplayHkeyArrayGraph displayView
+   put _GetTransportStack (displayView) into tStack
+   put the displayed_HkeyArray of displayView into hkeyArray
+   --
+   display_ScriptHkeyArray hKeyArray, tStack
+end menu_DisplayHkeyArrayGraph
+
+on menu_CreateTransporterGraphs displayView
+   put _GetTransportStack (displayView) into tStack
+   --
+   transporter_CreateGraph tStack, true, true
+end menu_CreateTransporterGraphs
+
 on _TestDisplayedStacks indexView
    put the displayed_Index of indexView into shortFiles
    rig_CheckFiles shortFiles, indexView
@@ -216,21 +243,6 @@ on _IdeDictionary
    edit the script of stack "lib_IDE"
    edit the script of stack "lib_IdeHack"
 end _IdeDictionary
-
-on _DisplayGetpropHandler displayView
-   put the title_Text of displayView into tObject
-   put the displayed_Data of displayView into objectDepArray
-   --
-   display_TransportGetpropIfNeeded tObject, objectDepArray
-   put the result into someError
-   if item 1 of the result is "error" then
-      lcw_AnswerWarning someError, displayView
-   else
-      put someError into getpropDisplayView
-      lcw_Answer "The scripts 'getprop dep_StackNames' handler is not correct. Please update script.", getpropDisplayView
-      edit the script of tObject
-   end if
-end _DisplayGetpropHandler
 
 on _DisplayWalkHierarchy displayView
    put LocalArray ["tObject"] into tObject

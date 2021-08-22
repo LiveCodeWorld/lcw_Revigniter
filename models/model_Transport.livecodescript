@@ -5,156 +5,140 @@ copyright: David Bovill
 license: GPLv3
 name: model_Transport
 type: model
-version: 0.1
+version: 0.2
+
+
+--> Display
+-
+command migrate_StatusModel
+   get federation_FetchStatusModel()
+   federation_StoreStatusModel it
+   --
+   display_TransportModels
+   display_FederationModel "Federation Status Model"
+end migrate_StatusModel
+
+command display_FederationModel nameOrShortFile
+   if nameOrShortFile ends with ".json" then
+      put transport_FetchModelFromShortFile (nameOrShortFile) into modelData
+   else
+      put federation_FetchModel (nameOrShortFile) into modelData
+   end if
+   --
+   display_Data modelData, nameOrShortFile, "Transport Model"
+   return the result
+end display_FederationModel
+
+function federation_FetchStatusModel
+   put federation_FetchModel ("Federation Status Model") into atopiaFedray
+   return atopiaFedray
+end federation_FetchStatusModel
+
+command federation_StoreStatusModel statusData
+   federation_StoreModel "Federation Status Model", statusData
+   put the result into writeError
+   return writeError
+end federation_StoreStatusModel
+
+
+--> Working on | Delete
+-
+command transport_PostDeleteModel modelName
+   put modelName into postData ["modelName"]
+   _PostDeleteFile postData
+   put the result into rPageArray
+   return rPageArray
+end transport_PostDeleteModel
+
+command transport_PostDeleteShortModelFile shortModelFile
+   put shortModelFile into postData ["shortModelFile"]
+   _PostDeleteFile postData
+   put the result into rPageArray
+   return rPageArray
+end transport_PostDeleteShortModelFile
+
+private command _PostDeleteFile postData
+   put secret_Get ("TransportModel") into pWord
+   put pWord into postData ["secret"]
+   --
+   put json_FromArray (postData) into postJSON
+   put jsonrpc_Post (postJSON, "https://rest.livecode.world/atopia/deleteShortModelFile") into rPageJson
+   --
+   put json_ToArray (rPageJson) into rPageArray
+   return rPageArray
+end _PostDeleteFile
+
+command transport_DeleteModel modelName
+   put _ModelPath (modelName) into modelPath
+   _DeleteFile modelPath
+   return the result
+end transport_DeleteModel
+
+command transport_DeleteShortModelFile shortModelFile
+   put _ModelFolder() & shortModelFile into modelPath
+   _DeleteFile modelPath
+   return the result
+end transport_DeleteShortModelFile
+
+private command _DeleteFile sFile
+   if the environment is "server" then
+      delete file sFile
+   else
+      ssh_DeleteFile "fortyfoxes", "rest.livecode.world", sFile
+   end if
+   return the result
+end _DeleteFile
 
 
 --> Working on
 -
-function jwt_ConstructToken userName
-   put the seconds into tIAT
-   put tIAT + 10 into tNBF
-   put tIAT + 60 into tEXP
-   
-   put "jwt test" into tJWTpayloadA ["sub"]
-   put userName into tJWTpayloadA ["name"]
-   put "true" into tJWTpayloadA ["admin"]
-   
-   # NOTE: SECONDS NEED TO BE A STRING, OTHERWISE THE DATA OF JSONEXPORT IS NOT VALID.
-   put tIAT & "" into tJWTpayloadA ["iat"]
-   put tNBF & "" into tJWTpayloadA ["nbf"]
-   put tEXP & "" into tJWTpayloadA ["exp"]
-   put uuid() into tJWTpayloadA ["jti"]
-   
-   put rigJWTencode( , tJWTpayloadA) into tJWT
-   return tJWT
-end jwt_ConstructToken
 
-
---> Fedserver | Model
+--> Atopia | DomainArray | Model
 -
-/*
-Federation server models are stored on pages named "ServerName Model" on the wiki "server.fedwiki.org"
+function atopia_FetchDomainArray
+   put federation_FetchModel ("Atopia Domain Array") into atopiaFedray
+   return atopiaFedray
+end atopia_FetchDomainArray
 
-Each server model has the following structure:
-
-- federationServerArray ["domains"] = fedray
-- federationServerArray ["pageNum"]
-- federationServerArray ["ipAddress"]
-- federationServerArray ["domainNum"]
-
-of which "fedray" is the most important
-*/
-
-function fedserver_FetchModel serverName
-   put _ConstructServerPageSlug (serverName) into pSlug
+command atopia_StoreDomainArray atopiaFedray
+   if atopiaFedray is not an array then return "Error, atopiaFedray is not an array. Delete instead?"
    --
-   put fedwiki_FetchPluginJSON (pSlug, "server.fedwiki.org") into someJSON
-   put json_ToArray (someJSON) into fedserverModel
-   if fedserverModel is false then return empty
-   return fedserverModel
-end fedserver_FetchModel
+   federation_StoreModel "Atopia Domain Array", atopiaFedray
+   put the result into writeError
+   return writeError
+end atopia_StoreDomainArray
 
-command fedserver_StoreModel serverName, fedserverModel
-   put _ConstructServerPageSlug (serverName) into pSlug
-   --
-   put json_FromArray (fedserverModel) into someJSON
-   put atopia_GetJsonSecret() into apiKey
-   fedwiki_PutPluginJSON someJSON, pSlug, "server.fedwiki.org", apiKey
+
+--> Fedray | Model
+-
+function fedray_FetchModel
+   put federation_FetchModel ("Federation Model") into fedray
+   return fedray
+end fedray_FetchModel
+
+command fedray_StoreModel fedray
+   federation_StoreModel "Federation Model", fedray
    put the result into putError
    return putError
-end fedserver_StoreModel
-
-
---> Fedray | Model | List
--
-/*
-Federation models are wiki pages on "roster.fedwiki.org" named "[[ModelName]] Model"
-The wiki pages contain a json plugin which stored the model 
-*/
-
-constant FedModelDomain = "roster.fedwiki.org"
-
-function federation_ModelDomain
-   return FedModelDomain
-end federation_ModelDomain
-
-function federation_ModelExists modelTitle
-   put federation_ListModels() into modelTitles
-   set the wholematches to true
-   put modelTitle is among the lines of modelTitles into modelExists
-   return modelExists
-end federation_ModelExists
-
-command federation_Launch modelTitle
-   put federation_ModelDomain() into modelDomain
-   fedwiki_Launch modelDomain, modelTitle
-   return the result
-end federation_Launch
-
-function federation_ListModels
-   put fedwiki_ListSitemapPages (FedModelDomain) into pageTitles
-   filter pageTitles with "* Model"
-   return pageTitles
-end federation_ListModels
-
-command federation_CreateModelPage modelTitle
-   if federation_ModelExists (modelTitle) then
-      return merge ("Error, model '[[modelTitle]]' already exists. Delete first if you want to create it anew.")
-   end if
-   
-   put fedwiki_ConstructSlug (modelTitle) into pageSlug
-   put empty into forkDomains
-   --
-   put pageArray_FetchTemplate (FedModelDomain, "Model Template", modelTitle, forkDomains) into pageArray
-   pageArray_Store FedModelDomain, pageSlug, pageArray
-   --
-   return pageArray
-end federation_CreateModelPage
-
-command federation_DeleteModelPage modelTitle
-   put fedwiki_ConstructSlug (modelTitle) into pageSlug
-   pageArray_Delete FedModelDomain, pageSlug
-   return the result
-end federation_DeleteModelPage
+end fedray_StoreModel
 
 
 --> Fedray | Model
 -
 function federation_FetchModel modelName
-   put transport_FetchModel (modelName) into fedray
-   return fedray
-   
-   put fedwiki_ConstructSlug (modelTitle) into pageSlug
-   put fedwiki_FetchPluginData (pageSlug, FedModelDomain) into fedray
-   if fedray is false then return empty
-   return fedray
-end federation_FetchModel
-
-command federation_StoreModel modelName, fedray
-   transport_StoreModel modelName, modelData
-   return the result
-   
-   put fedwiki_ConstructSlug (modelTitle) into pageSlug
-   -- put atopia_GetJsonSecret() into apiKey
-   put secret_Get ("AtopiaJsonApiKey", "jsonApiKey") into apiKey
-   put json_FromArray (fedray) into someJSON
-   fedwiki_PutPluginJSON someJSON, pageSlug, FedModelDomain, apiKey
-   put the result into putError
-   return putError
-end federation_StoreModel
-
-function transport_FetchModel modelName
+   -- was "transport_FetchModel"
    if the environment = "development" then
       -- this would work on the server as well
-      put transport_ConstructModelShortFile (modelName) into shortModelFile
+      put _ModelShortFile (modelName) into shortModelFile
       put transport_FetchModelFromShortFile (shortModelFile) into modelData
    else
       put transport_GetModel (modelName) into modelData
    end if
    return modelData
-end transport_FetchModel
+end federation_FetchModel
 
-command transport_StoreModel modelName, modelData
+command federation_StoreModel modelName, modelData
+   -- was "transport_StoreModel"
    if the environment = "development" then
       put secret_Get ("TransportModel") into pWord
       transport_PostProtectedModel modelData, modelName, pWord
@@ -165,38 +149,7 @@ command transport_StoreModel modelName, modelData
       put pageArray_Construct ("Written", modelPath) into rPageArray
    end if
    return rPageArray
-end transport_StoreModel
-
-
---> Atopia | DomainArray | Model
--
-function atopia_FetchDomainArray
-   put transport_FetchModel ("Atopia Domain Array") into atopiaFedray
-   return atopiaFedray
-   
-   /*
-   -- also "fedserver_FetchFedray" of model_FedServer
-   put fedwiki_FetchPluginJSON ("atopia-domain-index", "server.fedwiki.org") into someJSON
-   put json_ToArray (someJSON) into atopiaFedray
-   if atopiaFedray is false then return empty
-   return atopiaFedray
-   */
-end atopia_FetchDomainArray
-
-command atopia_StoreDomainArray atopiaFedray
-   if atopiaFedray is not an array then return "Error, atopiaFedray is not an array. Delete instead?"
-   --
-   transport_StoreModel "Atopia Domain Array", atopiaFedray
-   
-   /*
-   put json_FromArray (atopiaFedray) into someJSON
-   put secret_Get ("AtopiaJsonApiKey", "jsonApiKey") into apiKey
-   fedwiki_PutPluginJSON someJSON, "atopia-domain-index", "server.fedwiki.org", apiKey
-   */
-   
-   put the result into writeError
-   return writeError
-end atopia_StoreDomainArray
+end federation_StoreModel
 
 
 --> Transport | Model | Write
@@ -227,53 +180,28 @@ command transport_SetModelJSON modelName, modelJSON
    put textEncode (modelJSON, "UTF-8") into encodedJSON
    
    # Relative file for rigWriteFile
-   put transport_ConstructModelShortFile (modelName) into shortFile
-   put "./model/" & shortFile into relativeFile
+   put _ModelRelativePath (modelName) into relativeFile
    
    # Write encodedJSON
    if rigWriteFile (relativeFile, encodedJSON) is FALSE then
       put "Error, could not write file" & CR&CR & jsonPath into errorMsg
       return errorMsg
    else
-      put transport_GetModelPath (modelName) into modelPath
+      put _ModelPath (modelName) into modelPath
       return modelPath
    end if
 end transport_SetModelJSON
-
-command transport_DeleteModel modelName
-   put transport_GetModelPath (modelName) into modelPath
-   delete file modelPath
-   if the result is empty then
-      return modelPath
-   else
-      put "Error," && the result & CR&CR & modelPath into errorMsg
-      return errorMsg
-   end if
-end transport_DeleteModel
-
-command transport_DeleteShortModelFile shortModelFile
-   put transport_GetModelFolder() into modelFolder
-   put modelFolder & shortModelFile into modelPath
-   --
-   delete file modelPath
-   if the result is empty then
-      return modelPath
-   else
-      put "Error," && the result & CR&CR & modelPath into errorMsg
-      return errorMsg
-   end if
-end transport_DeleteShortModelFile
 
 
 --> Transport | AtopiaCat | Model
 -
 function transport_FetchAtopiaCatModel
-   put transport_FetchModel ("Atopia Category Model") into atopiaCatModel
+   put federation_FetchModel ("Atopia Category Model") into atopiaCatModel
    return atopiaCatModel
 end transport_FetchAtopiaCatModel
 
 command transport_StoreAtopiaCatModel atopiaCatModel
-   transport_StoreModel "Atopia Category Model", atopiaCatModel
+   federation_StoreModel "Atopia Category Model", atopiaCatModel
    --
    put the result into modelPath
    return modelPath      
@@ -297,41 +225,11 @@ command transport_PostDeleteCatModelFromShortFile shortModelFile
    deleteShortModelFile
 end transport_PostDeleteCatModelFromShortFile
 
-command transport_PostDeleteShortModelFile shortModelFile
-   put shortModelFile into postData ["shortModelFile"]
-   put _GetPostTransportModel (postData) into rPageArray
-   return rPageArray
-end transport_PostDeleteShortModelFile
-
-command transport_PostDeleteModel modelName
-   put modelName into postData ["modelName"]
-   put _GetPostTransportModel (postData) into rPageArray
-   return rPageArray
-end transport_PostDeleteModel
-
 command transport_StoreAtopiaCatModel atopiaCatModel
-   transport_StoreModel "Atopia Category Model", atopiaCatModel
+   federation_StoreModel "Atopia Category Model", atopiaCatModel
    put the result into modelPath
    return modelPath
 end transport_StoreAtopiaCatModel
-
--- command transport_WriteModelPostData postData, storedSecret
-put postData ["secret"] into someSecret
---
-if someSecret is storedSecret then 
-   -- put rigFetchSegment (3, "Atopia Model") into modelName
-   put postData ["modelName"] into modelName
-   put postData ["modelData"] into modelData
-   --
-   transport_SetModel modelName, modelData
-   put the result into jsonPath
-   --
-   put pageArray_Construct ("writeModel", jsonPath) into rPageArray
-else
-   put pageArray_Construct ("Error", "Not authenticated") into rPageArray
-end if
-return rPageArray
-end transport_WriteModelPostData
 
 
 --> Transport | Model | Rest
@@ -354,7 +252,7 @@ command transport_PostProtectedModel modelData, modelName, pWord
    put pWord into postData ["secret"]
    --
    put json_FromArray (postData) into postJSON
-   put textDecode (postJSON, "UTF-8") into postJSON
+   -- put textDecode (postJSON, "UTF-8") into postJSON -- seems to cause an issue sometimes???
    --
    put jsonrpc_Post (postJSON, "https://rest.livecode.world/atopia/writeModel") into utf8Json
    put textEncode (utf8Json, "UTF-8") into rPageJson
@@ -367,34 +265,40 @@ end transport_PostProtectedModel
 --> Transport | Model | Files | List
 -
 function transport_ListModelFiles
-   put transport_GetModelFolder() into modelFolder
+   put _ModelFolder() into modelFolder
    put rig_ListFiles (modelFolder) into shortFiles
    return shortFiles
 end transport_ListModelFiles
 
 
---> Transport | Model | Files
+--> Private | Files
 -
-function transport_ConstructModelShortFile modelName
+private function _ModelShortFile modelName
    put fedwiki_ConstructSlug (modelName) into modelSlug
    put modelSlug & ".json" into shortFile
    return shortFile
-end transport_ConstructModelShortFile
+end _ModelShortFile
 
-function transport_GetModelPath modelName
-   put transport_ConstructModelShortFile (modelName) into shortFile
-   put transport_GetModelFolder() into modelFolder
+private function _ModelRelativePath modelName
+   put _ModelShortFile (modelName) into shortFile
+   put "./model/" & shortFile into relativeFile
+   return relativeFile
+end _ModelRelativePath
+
+private function _ModelPath modelName
+   put _ModelShortFile (modelName) into shortFile
+   put _ModelFolder() into modelFolder
    put modelFolder & shortFile into modelPath
    return modelPath
-end transport_GetModelPath
+end _ModelPath
 
-function transport_GetModelFolder
-   put transport_GetDocumentRoot() into modelFolder
+private function _ModelFolder
+   put _DocumentRoot() into modelFolder
    put "model/" after modelFolder
    return modelFolder
-end transport_GetModelFolder
+end _ModelFolder
 
-function transport_GetDocumentRoot
+private function _DocumentRoot
    if the environment is "server" then
       -- put server_GetDocumentRoot() & slash into modelFolder
       put $_SERVER ["DOCUMENT_ROOT"] & slash into modelFolder
@@ -402,24 +306,28 @@ function transport_GetDocumentRoot
       put "/var/www/rest.livecode.world/" into modelFolder
    end if
    return modelFolder
-end transport_GetDocumentRoot
+end _DocumentRoot
 
 
 --> Private
 -
+private function jsonrpc_POST someJSON, restUrl, pOAuthToken, pExtraHeaders, pVersionNum
+   rest_SetJsonHeaders pOAuthToken, pVersionNum, pExtraHeaders
+   post someJSON to url restUrl
+   put it into jsonResult
+   return jsonResult
+end jsonrpc_POST
+
 private function _LocalModelLocal modelName
-   put transport_GetModelPath (modelName) into modelPath
+   put _ModelPath (modelName) into modelPath
    put "file:" & modelPath into jsonURL
    return jsonURL
 end _LocalModelLocal
 
-function _GetPostTransportModel postData
-   put secret_Get ("TransportModel") into pWord
-   put pWord into postData ["secret"]
+function secret_Get secretName
+   -- for server use only
+   if the environment is not "server" then pass "secret_Get"
    --
-   put json_FromArray (postData) into postJSON
-   put jsonrpc_Post (postJSON, "https://rest.livecode.world/atopia/deleteShortModelFile") into rPageJson
-   --
-   put json_ToArray (rPageJson) into rPageArray
-   return rPageArray
-end _GetPostTransportModel
+   put rigFetchConfigItem (secretName) into someSecret
+   return someSecret
+end secret_Get

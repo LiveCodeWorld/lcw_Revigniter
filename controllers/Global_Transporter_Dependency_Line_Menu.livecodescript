@@ -37,7 +37,30 @@ private command _ReplaceFoundHkey @objectArray, hKey, selectedLib, foundHkey
    put empty into objectArray [hObject][foundHkey]
 end _ReplaceFoundHkey
 
+private function _GetHkey displayView
+   put the selected_Line of displayView into hKey
+   if hkey_Check (hKey) is true then
+      return hKey
+   else
+      return empty
+   end if
+end _GetHkey
+
+function hkey_Check hKey
+   hkeyLine_Deconstruct hKey, hName, hType, hObject
+   if exists (hObject) is false then return false
+   if hType is not among the items of "M,F,G,S,PM,PF" then return false
+   if the number of words of hName is not 1 then return false
+   return true
+end hkey_Check
+
 private function _IsHkey displayView
+   if _GetHkey (displayView) is empty then
+      return false
+   else
+      return true
+   end if
+   /*
    get the selected_Path of displayView
    switch 
       case item 3 of it is empty
@@ -48,6 +71,7 @@ private function _IsHkey displayView
       default
          return false
    end switch
+   */
 end _IsHkey
 
 -- getprop menu_DisplayDeps [displayView]
@@ -55,14 +79,14 @@ return _IsHkey (displayView)
 end menu_DisplayDeps
 
 getprop disabled_EditHandler [displayView]
-   return _IsHkey (displayView)
+   return _IsHkey (displayView) is false
 end disabled_EditHandler
 
 
 --> Global | Transporter | Dependency | Line | Menu
 -
 on menu_EditHandler displayView
-   put the selected_Line of displayView into hKey
+   put _GetHkey (displayView) into hKey
    --
    hkey_Edit hKey
 end menu_EditHandler
@@ -78,7 +102,7 @@ on _
 end _
 
 on menu_UseTransportLibrary displayView
-   put the selected_Line of displayView into hKey
+   put _GetHkey (displayView) into hKey
    put word 1 to 2 of hKey into shortHKey
    
    put the displayed_Array of displayView into objectArray
@@ -106,7 +130,7 @@ on _
 end _
 
 on menu_TranportHandlerHkeyArray displayView
-   put the selected_Line of displayView into hKey
+   put _GetHkey (displayView) into hKey
    hkeyLine_Deconstruct hKey, hName, hType, hObject
    put the result into shortHkey
    --
@@ -126,12 +150,9 @@ end submenu_Dev
 --> Dev | Menu
 -
 on menu_FindInDisplayed displayView
-   put word 1 to 2 of the selected_Line of displayView into shortHKey
+   put _GetHkey (displayView) into hKey
+   put word 1 to 2 of hKey into shortHKey
    put _GetOtherStackObjects (displayView) into otherStackObjects
    --
    put hkey_FindObjects (shortHKey, otherStackObjects)
 end menu_FindInDisplayed
-
-
---> Deps
--

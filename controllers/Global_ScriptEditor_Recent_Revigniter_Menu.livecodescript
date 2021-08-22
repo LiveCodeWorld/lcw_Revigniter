@@ -214,10 +214,6 @@ on _SetIdeBehavior
    return "Global | ScriptEditor | Behavior | Menu"
 end _SetIdeBehavior
 
-on _Test scriptObject
-   put the handler_PermaMarkdown of scriptObject & CR & CR & the menu_PermalinkMarkdown [true] of scriptObject
-end _Test
-
 on _EditTemporaryBehavior scriptObject
    edit the script of stack "behavior_RigLocalOveride"
 end _EditTemporaryBehavior

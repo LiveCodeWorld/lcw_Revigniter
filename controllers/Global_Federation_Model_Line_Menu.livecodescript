@@ -1,14 +1,11 @@
-﻿script "Global | Transport | Model | Line | Menu"
+﻿script "Global | Federation | Model | Line | Menu"
 --> MetaData
 -
-copyright: Anonymous
+copyright: David Bovill
 license: GPLv3
-name: Global | Transport | Model | Line | Menu
+name: Global | Federation | Model | Line | Menu
 type: controller
 version: 0.1
-
-/*Here you can describe this menu.
-Full help text should be provided on the linked wiki.*/
 
 
 --> Variables
@@ -29,49 +26,44 @@ getprop menu_CheckTarget [mTarget]
    pass menu_CheckTarget
 end menu_CheckTarget
 
+private function _GetModelName shortModelFile
+   set the itemdelimiter to "."
+   put item 1 of shortModelFile into pageSlug
+   put fedwiki_ConstructTitle (pageSlug) into modelName
+   return modelName
+end _GetModelName
+
 private function _ShortModelFile displayView
    put the selected_Line of displayView into shortModelFile
    return shortModelFile
 end _ShortModelFile
 
 
---> Global | Transport | Model | Line | Menu
+--> Global | Federation | Model | Line | Menu
 -
 on menu_DisplayModel displayView
    put _ShortModelFile (displayView) into shortModelFile
    --
-   put transport_FetchModelFromShortFile (shortModelFile) into modelData
-   display_Data modelData, shortModelFile, "Transport Model"
+   display_FederationModel shortModelFile
 end menu_DisplayModel
+
+on menu_TransportModelHelp displayView
+   put _ShortModelFile (displayView) into shortModelFile
+   put _GetModelName (shortModelFile) into modelName
+   --
+   put modelName
+end menu_TransportModelHelp
 
 on _
 end _
 
 on menu_DeleteModel displayView
    put _ShortModelFile (displayView) into shortModelFile
-   --
    lcw_Answer "Are you sure you want to delete the model [[shortModelFile]]?", displayView, shortModelFile
    set the cursor to watch
    --
-   transport_PostDeleteShortModelFile shortModelFile
-   /*
-   put the result into rArray
-   display_Data rArray, "Delete Model Result", "Transport Server"
-   */
+   transport_DeleteShortModelFile shortModelFile
+   put the result into deleteShellResult
+   --
    display_TransportModels
 end menu_DeleteModel
-
-on submenu_Dev
-   return "Dev | Menu"
-end submenu_Dev
-
-
---> Dev | Menu
--
-on menu_Experiment displayView
-   put displayView
-end menu_Experiment
-
-
---> Deps
--

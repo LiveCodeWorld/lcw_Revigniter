@@ -217,6 +217,7 @@ command display_TransportObjectDeps tObject, pWhichSearch
    --
    display_SetInteractions displayView, "Transporter | Dependency", "mDoubleUp_ObjectDeps"
    --
+   set the displayed_Object of displayView to tObject
    set the displayed_HkeyArray of displayView to hKeyArray
    set the displayed_Transport of displayView to tObject
    set the displayed_SearchType of displayView to pWhichSearch
