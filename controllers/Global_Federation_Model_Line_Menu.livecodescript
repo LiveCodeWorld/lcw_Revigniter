@@ -62,7 +62,7 @@ on menu_DeleteModel displayView
    lcw_Answer "Are you sure you want to delete the model [[shortModelFile]]?", displayView, shortModelFile
    set the cursor to watch
    --
-   transport_DeleteShortModelFile shortModelFile
+   federation_DeleteModelFromShortFile shortModelFile
    put the result into deleteShellResult
    --
    display_TransportModels

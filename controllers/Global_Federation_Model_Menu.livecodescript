@@ -16,7 +16,7 @@ local LocalArray
 --> Events
 -
 on mDoubleUp_FederationModel displayView, shortModelFile
-   put transport_FetchModelFromShortFile (shortModelFile) into modelData
+   put federation_RestGetModelFromShortFile (shortModelFile) into modelData
    --
    display_Data modelData, shortModelFile, "Transport Model"
 end mDoubleUp_FederationModel
@@ -122,14 +122,13 @@ on _DisplayAtopiaCatModel
 end _DisplayAtopiaCatModel
 
 on _StoreAtopiaCatArray
-   -- put atopia_GetLastUpDate() into laterThanSeconds
    put federation_GetLastUpDate() into laterThanSeconds
    put atopia_ConstructCatModel (laterThanSeconds) into atopiaCatModel
    --
-   transport_PostAtopiaCatModel atopiaCatModel
+   federation_RestPostModel atopiaCatModel, "Atopia Category Model"
    put the result into rPageArray
    --
-   put transport_FetchAtopiaCatModel() into atopiaCatModel
+   put atopia_FetchCatModel() into atopiaCatModel
    display_Data atopiaCatModel, "Categorised Date Array", "Atopia Server"
    display_PageArray rPageArray
 end _StoreAtopiaCatArray
@@ -152,16 +151,6 @@ end _PostFederationUpdate
 
 on _
 end _
-
-on _CreateTransportModel
-   put atopia_FetchDomainArray() into modelData
-   -- put pageArray_FetchByTitle ("roster.fedwiki.org", "Register Sites Template") into modelData
-   --
-   transport_PostProtectedModel modelData, "bosmeg"
-   put the result into rPageArray
-   --
-   display_PageArray rPageArray
-end _CreateTransportModel
 
 on _CreateTransportPage
    breakpoint
