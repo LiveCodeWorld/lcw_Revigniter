@@ -9,6 +9,13 @@ version: 0.4
 
 --> Working on
 -
+command scrape_SetUserAgent
+   -- HTTP_USER_AGENT Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:62.0) Gecko/20100101 Firefox/62.0
+   -- HTTP_USER_AGENT Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36
+   put "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:62.0) Gecko/20100101 Firefox/62.0" into sHeader
+   set the httpheaders to sHeader
+end scrape_SetUserAgent
+
 function scrape_ConstructFedwikiPageArray someURL, pAddFaviconLink, pAddCitation, pAddMarkDownLinks
    -- uses "lib_Scrape"
    local pageArray

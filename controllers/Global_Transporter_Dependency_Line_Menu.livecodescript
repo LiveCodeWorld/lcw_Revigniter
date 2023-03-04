@@ -15,6 +15,11 @@ Full help text should be provided on the linked wiki.*/
 -
 local LocalArray
 
+getprop menu_Target [tObject]
+   put the display_View of tObject into displayView
+   return displayView
+end menu_Target
+
 
 --> Menu | Init
 -

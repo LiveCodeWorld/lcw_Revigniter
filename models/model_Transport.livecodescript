@@ -38,15 +38,9 @@ function federation_RestGetModel modelName
    return modelData
 end federation_RestGetModel
 
-function federation_RestGetModelFromShortFile shortModelFile
-   put federation_RestGetModelFromShortFile (shortModelFile) into modelURL
-   put _RestGetModel (modelURL) into modelData
-   return modelData
-end federation_RestGetModelFromShortFile
-
 command federation_RestPostModel modelData, modelName
    put "TransportModel" into secretName
-   if the environment is not "server" then
+   if the environment is "server" then
       put rigFetchConfigItem (secretName) into pWord
    else
       put secret_Get (secretName) into pWord
@@ -63,7 +57,7 @@ end federation_RestPostModel
 
 function federation_ModelUrl modelName
    put _ModelShortFile (modelName) into shortFile
-   put federation_RestGetModelFromShortFile (shortFile) into modelURL
+   put federation_ModelUrlFromShortFile (shortFile) into modelURL
    return modelURL
 end federation_ModelUrl
 
@@ -160,17 +154,37 @@ end federation_DeleteModelFromShortFile
 
 --> Transport | Model | Write
 -
+function federation_RestGetModelFromShortFile shortModelFile
+   put federation_ModelUrlFromShortFile (shortModelFile) into modelURL
+   put _RestGetModel (modelURL) into modelData
+   return modelData
+end federation_RestGetModelFromShortFile
+
 function transport_GetModel modelName
-   get _GetModelJSON (modelName)
+   put _ModelPath (modelName) into modelPath
+   put "file:" & modelPath into jsonURL
+   put url jsonURL into utf8JSON
+   get textDecode (utf8JSON, "UTF-8")
    put json_ToArray (it) into modelData
    return modelData
 end transport_GetModel
 
 command transport_SetModel modelName, modelData
    put json_FromArray (modelData) into modelJSON
-   _SetModelJSON modelName, modelJSON
-   put the result into modelPath
-   return modelPath
+   
+   # Encode modeJSON for storage
+   put textEncode (modelJSON, "UTF-8") into utf8JSON
+   
+   # Relative file for rigWriteFile
+   put _ModelRelativePath (modelName) into relativeFile
+   
+   # Write encodedJSON
+   rigLoadHelper "file"
+   if rigWriteFile (relativeFile, utf8JSON) is FALSE then
+      return "Error, could not write file:" & relativeFile
+   else
+      return relativeFile
+   end if
 end transport_SetModel
 
 
@@ -191,31 +205,6 @@ private function _RestGetModel modelURL
    put json_ToArray (rJSON) into modelData
    return modelData
 end _RestGetModel
-
-private function _GetModelJSON modelName
-   put _LocalModelLocal (modelName) into jsonURL
-   put url jsonURL into encodedJSON
-   put textDecode (encodedJSON, "UTF-8") into modelJSON
-   return modelJSON
-end _GetModelJSON
-
-private command _SetModelJSON modelName, modelJSON
-   # Encode modeJSON for storage
-   rigLoadHelper "file"
-   put textEncode (modelJSON, "UTF-8") into encodedJSON
-   
-   # Relative file for rigWriteFile
-   put _ModelRelativePath (modelName) into relativeFile
-   
-   # Write encodedJSON
-   if rigWriteFile (relativeFile, encodedJSON) is FALSE then
-      put "Error, could not write file" & CR&CR & jsonPath into errorMsg
-      return errorMsg
-   else
-      put _ModelPath (modelName) into modelPath
-      return modelPath
-   end if
-end _SetModelJSON
 
 
 --> Private | Files
@@ -254,12 +243,6 @@ private function _DocumentRoot
    end if
    return modelFolder
 end _DocumentRoot
-
-private function _LocalModelLocal modelName
-   put _ModelPath (modelName) into modelPath
-   put "file:" & modelPath into jsonURL
-   return jsonURL
-end _LocalModelLocal
 
 private command _DeleteFile sFile
    if the environment is "server" then
