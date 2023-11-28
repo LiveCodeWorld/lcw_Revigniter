@@ -327,11 +327,11 @@ function rig_ConstructControllerFromScript controllerScript, shortControllerFile
    --
    put rig_FilterControllerScript (controllerScript, hTable) into publicHandlers
    --
-   put scaffold_GetTemplate ("revIgniter Controller Template") into scriptTemplate
+   put scaffold_Get ("revIgniter Controller Template") into scriptTemplate
    put merge (scriptTemplate) into rigScript   
    --
    /*
-   put scaffold_GetTemplate ("revIgniter Dependency Section")  into dependencyTemplate
+   put scaffold_Get ("revIgniter Dependency Section")  into dependencyTemplate
    put rig_ExtractDependencies (controllerScript) into handlerDependencies
    if handlerDependencies is not empty then
       put merge (dependencyTemplate) into dependencySection
