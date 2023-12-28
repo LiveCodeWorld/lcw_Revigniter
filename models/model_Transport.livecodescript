@@ -15,46 +15,6 @@ Check the help for this model for code that uses a server side transport and res
 
 --> Working on
 -
-
---> Display
--
-command display_FederationModel nameOrShortFile
-   if nameOrShortFile ends with ".json" then
-      put federation_RestGetModelFromShortFile (nameOrShortFile) into modelData
-   else
-      put federation_FetchModel (nameOrShortFile) into modelData
-   end if
-   --
-   display_Data modelData, nameOrShortFile, "Transport Model"
-   return the result
-end display_FederationModel
-
-
---> Federation | REST
--
-function federation_RestGetModel modelName
-   put federation_ModelUrl (modelName) into modelURL
-   put _RestGetModel (modelURL) into modelData
-   return modelData
-end federation_RestGetModel
-
-command federation_RestPostModel modelData, modelName
-   put "TransportModel" into secretName
-   if the environment is "server" then
-      put rigFetchConfigItem (secretName) into pWord
-   else
-      put secret_Get (secretName) into pWord
-   end if
-   --
-   put modelData into postData ["modelData"]
-   put modelName into postData ["modelName"]
-   put pWord into postData ["secret"]
-   --
-   put jsonrpc_PostArray (postData, "https://rest.livecode.world/atopia/writeModel") into rPageArray
-   --
-   return rPageArray
-end federation_RestPostModel
-
 function federation_ModelUrl modelName
    put _ModelShortFile (modelName) into shortFile
    put federation_ModelUrlFromShortFile (shortFile) into modelURL
@@ -65,44 +25,6 @@ function federation_ModelUrlFromShortFile shortModelFile
    put "https://rest.livecode.world/model/" & shortModelFile into modelURL
    return modelURL
 end federation_ModelUrlFromShortFile
-
-
---> Named | Federation | Models
--
-function fedray_FetchModel
-   put federation_FetchModel ("Federation Model") into fedray
-   return fedray
-end fedray_FetchModel
-
-command fedray_StoreModel fedray
-   federation_StoreModel "Federation Model", fedray
-   put the result into putError
-   return putError
-end fedray_StoreModel
-
-function atopia_FetchDomainArray
-   put federation_FetchModel ("Atopia Domain Array") into atopiaFedray
-   return atopiaFedray
-end atopia_FetchDomainArray
-
-command atopia_StoreDomainArray atopiaFedray
-   if atopiaFedray is not an array then return "Error, atopiaFedray is not an array. Delete instead?"
-   --
-   federation_StoreModel "Atopia Domain Array", atopiaFedray
-   put the result into writeError
-   return writeError
-end atopia_StoreDomainArray
-
-function atopia_FetchCatModel
-   put federation_FetchModel ("Atopia Category Model") into atopiaCatModel
-   return atopiaCatModel
-end atopia_FetchCatModel
-
-command atopia_StoreCatModel atopiaCatModel
-   federation_StoreModel "Atopia Category Model", atopiaCatModel
-   put the result into modelPath
-   return modelPath      
-end atopia_StoreCatModel
 
 function federation_FetchStatusModel
    put federation_FetchModel ("Federation Status Model") into atopiaFedray
@@ -150,6 +72,84 @@ command federation_DeleteModelFromShortFile shortModelFile
    _DeleteFile modelPath
    return the result
 end federation_DeleteModelFromShortFile
+
+
+--> Display
+-
+command display_FederationModel nameOrShortFile
+   if nameOrShortFile ends with ".json" then
+      put federation_RestGetModelFromShortFile (nameOrShortFile) into modelData
+   else
+      put federation_FetchModel (nameOrShortFile) into modelData
+   end if
+   --
+   display_Data modelData, nameOrShortFile, "Transport Model"
+   return the result
+end display_FederationModel
+
+
+--> Federation | REST
+-
+function federation_RestGetModel modelName
+   put federation_ModelUrl (modelName) into modelURL
+   put _RestGetModel (modelURL) into modelData
+   return modelData
+end federation_RestGetModel
+
+command federation_RestPostModel modelData, modelName
+   put "TransportModel" into secretName
+   if the environment is "server" then
+      put rigFetchConfigItem (secretName) into pWord
+   else
+      put secret_Get (secretName) into pWord
+   end if
+   --
+   put modelData into postData ["modelData"]
+   put modelName into postData ["modelName"]
+   put pWord into postData ["secret"]
+   --
+   put jsonrpc_PostArray (postData, "https://rest.livecode.world/atopia/writeModel") into rPageArray
+   --
+   return rPageArray
+end federation_RestPostModel
+
+
+--> Named | Federation | Models
+-
+function fedray_FetchModel
+   put federation_FetchModel ("Federation Model") into fedray
+   return fedray
+end fedray_FetchModel
+
+command fedray_StoreModel fedray
+   federation_StoreModel "Federation Model", fedray
+   put the result into putError
+   return putError
+end fedray_StoreModel
+
+function atopia_FetchDomainArray
+   put federation_FetchModel ("Atopia Domain Array") into atopiaFedray
+   return atopiaFedray
+end atopia_FetchDomainArray
+
+command atopia_StoreDomainArray atopiaFedray
+   if atopiaFedray is not an array then return "Error, atopiaFedray is not an array. Delete instead?"
+   --
+   federation_StoreModel "Atopia Domain Array", atopiaFedray
+   put the result into writeError
+   return writeError
+end atopia_StoreDomainArray
+
+function atopia_FetchCatModel
+   put federation_FetchModel ("Atopia Category Model") into atopiaCatModel
+   return atopiaCatModel
+end atopia_FetchCatModel
+
+command atopia_StoreCatModel atopiaCatModel
+   federation_StoreModel "Atopia Category Model", atopiaCatModel
+   put the result into modelPath
+   return modelPath      
+end atopia_StoreCatModel
 
 
 --> Transport | Model | Write
