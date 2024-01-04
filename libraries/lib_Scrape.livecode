@@ -447,7 +447,7 @@ function scrapeID_ConstructHeaderPageArray treeID
             break
          default
             put revXMLText (treeID, nextNode, true) into htmlBit
-            array_AddToEndOfIndex htmlBit, htmlArray
+            itemArray_AddToEnd htmlBit, htmlArray
       end switch
       
       put revXMLNextSibling (treeID, nextNode, false) into nextNode
