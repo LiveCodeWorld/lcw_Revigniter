@@ -77,14 +77,12 @@ end mDoubleUp_ObjectDeps
 
 --> Working on
 -
+
+
 --> Display | Transport
 -
 command display_Transporters pDisplayArray
-   if pDisplayArray is true then
-      put rig_FetchControllerPathArray() into sData
-   else
-      put rig_ListControllerFiles() into sData
-   end if
+   put transport_List (pDisplayArray) into sData
    --   
    display_Tools sData, "rest.livecode.world", "Revigniter | Display | Controller", "Transporters" --, "lcw_Revigniter"
    put the result into displayView
@@ -93,7 +91,10 @@ command display_Transporters pDisplayArray
 end display_Transporters
 
 on mDoubleUp_RevigniterDisplayController dView shortFile
-   rig_EditController shortFile
+   -- rig_EditController shortFile
+   
+   put transport_ControllerStackPath (shortFile) into cStackPath
+   edit the script of stack cStackPath
 end mDoubleUp_RevigniterDisplayController
 
 command display_RigControllerArray
@@ -112,11 +113,6 @@ command display_RigControllerArray
    end if
    return displayView
 end display_RigControllerArray
-
-function transport_GetDroppedUrlIndex
-   put the text of fld 1 of stack "Transporter Drop Urls" into urlIndex
-   return urlIndex
-end transport_GetDroppedUrlIndex
 
 
 --> Display | Tranport | Dropper
@@ -313,7 +309,7 @@ end display_ControllerHandlers
 command display_TransportReturnPageArray pageArray, pTitle
    if pTitle is empty then
       put display_GetSelectedTransport() into pTitle
-      -- put "fedwiki_ReturnPageArray()" into pTitle
+      -- put "transport_ReturnPageArray()" into pTitle
    end if
    --   
    display_Data pageArray, pTitle, "Transport"
@@ -330,6 +326,11 @@ end display_TransportReturnPageArray
 
 --> Deps
 -
+function transport_GetDroppedUrlIndex
+   put the text of fld 1 of stack "Transporter Drop Urls" into urlIndex
+   return urlIndex
+end transport_GetDroppedUrlIndex
+
 function transport_GetSelectedHandler
    put LocalArray ["SelectedHandle"] into hName
    if hName is empty then put "index" into hName

@@ -22,7 +22,7 @@ function federation_ModelUrl modelName
 end federation_ModelUrl
 
 function federation_ModelUrlFromShortFile shortModelFile
-   put "https://rest.livecode.world/model/" & shortModelFile into modelURL
+   put "http://rest.livecode.world/model/" & shortModelFile into modelURL
    return modelURL
 end federation_ModelUrlFromShortFile
 
@@ -108,7 +108,7 @@ command federation_RestPostModel modelData, modelName
    put modelName into postData ["modelName"]
    put pWord into postData ["secret"]
    --
-   put jsonrpc_PostArray (postData, "https://rest.livecode.world/atopia/writeModel") into rPageArray
+   put jsonrpc_PostArray (postData, "http://rest.livecode.world/atopia/writeModel") into rPageArray
    --
    return rPageArray
 end federation_RestPostModel

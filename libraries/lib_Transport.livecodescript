@@ -13,6 +13,17 @@ This library is for creating and manipulating Transporter wiki pages.
 
 --> Working on
 -
+function transport_ConstructHiddenArray wikiDomain, pageSlug, pPageTitle
+   if pPageTitle is empty then
+      put fedwiki_ConstructTitle(pageSlug) into pPageTitle
+   end if
+   put wikiDomain into hiddenArray ["wikiDomain"]
+   put pageSlug into hiddenArray ["pageSlug"]
+   put pPageTitle into hiddenArray ["pageTitle"]
+   --
+   return hiddenArray
+end transport_ConstructHiddenArray
+
 function transport_GetLibraryStacks tObject
    put the project_Name of tObject into projectName
    if projectName is not "lcw_Controllers" then return "Error, not a transporter"
@@ -253,7 +264,7 @@ end transport_GetJsonPath
 --> Transport | Form
 -
 function transport_GetFormValue someKey
-   put fedwiki_GetDroppedArray() into postArray
+   put transport_GetDroppedArray() into postArray
    put postArray [someKey] into someValue
    return someValue
 end transport_GetFormValue
@@ -267,7 +278,7 @@ function transport_FetchFormPageArray
 end transport_FetchFormPageArray
 
 command transport_SetFormTitleDomain @wikiDomain, @pageTitle
-   put fedwiki_GetDroppedArray() into postArray
+   put transport_GetDroppedArray() into postArray
    put postArray ["wikiDomain"] into wikiDomain
    if wikiDomain is empty then
       set the itemdelimiter to slash
@@ -278,7 +289,7 @@ command transport_SetFormTitleDomain @wikiDomain, @pageTitle
 end transport_SetFormTitleDomain
 
 command transport_SetFormSlugDomain @wikiDomain, @pageSlug
-   put fedwiki_GetDroppedArray() into postArray
+   put transport_GetDroppedArray() into postArray
    put postArray ["wikiDomain"] into wikiDomain
    if wikiDomain is empty then
       set the itemdelimiter to slash

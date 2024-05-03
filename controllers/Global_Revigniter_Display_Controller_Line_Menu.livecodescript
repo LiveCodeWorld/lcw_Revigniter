@@ -87,14 +87,21 @@ end _
 
 on menu_DeleteController displayView
    put _ControllerFile (displayView) into shortControllerFile
+   
+   /*
    put the title_Text of displayView into serverTLD
-   --
    put merge ("Are you sure you want to delete the server file [[shortControllerFile]]?") into someComment
    lcw_Answer someComment
    --
    rig_DeleteController shortControllerFile, serverTLD
+   */
+   
+   put "Are you sure you want to delete the transporter [[shortControllerFile]]?" into someQuestion
+   lcw_Answer someQuestion, displayView, shortControllerFile
    --
-   _Refresh displayView
+   transport_DeleteController shortControllerFile
+   --
+   display_Transporters displayView
 end menu_DeleteController
 
 on _

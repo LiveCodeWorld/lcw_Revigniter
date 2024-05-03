@@ -22,6 +22,78 @@ problems regarding duplication of files. Instead we access local stack libraries
 */
 
 
+--> Rig | Create
+-
+command rig_CreateController controllerShortFile
+   local controllerFolder, controllerScript, controllerHandlers, scriptDescription, dependencyLibs
+   
+   rig_SetLocalControllerFolder controllerFolder
+   
+   put rig_ListControllerFiles() into existingControllers
+   if controllerShortFile is among the lines of existingControllers then
+      answer warning "Controller already exists!"
+      display_RigController controllerShortFile
+      return false
+   end if
+   
+   put scaffold_Get ("Rig Controller Handlers") into controllerScriptTemplate
+   put server_GetURL() into serverTLD
+   
+   put rig_ConstructControllerFromScript (controllerScriptTemplate, controllerShortFile, controllerHandlers, scriptDescription, dependencyLibs) into rigScript
+   
+   put rig_CreateContainerScript (rigScript, controllerShortFile) into controllerScript
+   rig_CreateLocalControllerStack controllerScript, controllerShortFile, controllerFolder
+   put the result into scriptStackFile
+   --
+   rig_StoreController controllerShortFile, rigScript
+   put the result into shellResult
+   
+   if shellResult is empty then
+      lcw_Answer "Created and stored new controller on the server!", displayView
+      display_Transporters
+      put the result into displayView
+      return displayView
+   else
+      beep
+      lcw_ExitAndWarn "Failed to store new controller on the server :("
+   end if
+end rig_CreateController
+
+
+--> Rig | Files
+-
+function rig_LocalControllerStackPath shortController
+   put rig_GetLocalControllerFolder() into controllerFolder
+   --
+   set the itemdelimiter to slash
+   put item 1 to -2 of controllerFolder & "/stacks/" into stackFolder
+   set the itemdelimiter to "."
+   put stackFolder & shortController into scriptStackFile
+   put "livecodescript" into item -1 of scriptStackFile
+   --
+   return scriptStackFile
+end rig_LocalControllerStackPath
+
+function rig_LocalControllerScriptPath shortController
+   put rig_GetLocalControllerFolder() into controllerFolder
+   put controllerFolder & shortController into controllerScriptPath
+   return controllerScriptPath
+end rig_LocalControllerScriptPath
+
+function rig_GetLocalControllerFolder
+   put pref_FetchValue ("rigControllerFolder") into controllerFolder
+   text_AddTrailing controllerFolder, slash
+   return controllerFolder
+end rig_GetLocalControllerFolder
+
+command rig_StoreControllerFolder controllerFolder
+   text_AddTrailing controllerFolder, slash
+   pref_SaveValue "rigControllerFolder", controllerFolder
+   put the result into dataArray
+   return dataArray
+end rig_StoreControllerFolder
+
+
 --> Working on
 -
 function rig_ConstructDepScriptLines shortLibPaths, pOldWay
@@ -55,15 +127,6 @@ function rig_ConstructDepScriptLines shortLibPaths, pOldWay
    return scriptLines
 end rig_ConstructDepScriptLines
 
-function _QuickUploadedTest stackName, serverShortStackFiles
-   -- hacky but effective test
-   replace ".livecodescript" with empty in serverShortStackFiles -- do this first
-   replace ".livecode" with empty in serverShortStackFiles
-   --
-   put stackName is among the lines of serverShortStackFiles into isThere
-   return isThere
-end _QuickUploadedTest
-
 function rig_GetControllerStackName shortController
    -- should work but some old stacks have ".livecode" as an extension
    -- a basic naming convention assumption that a stacks short file is its name + extension
@@ -72,36 +135,14 @@ function rig_GetControllerStackName shortController
    return stackName
 end rig_GetControllerStackName
 
-function rig_LocalControllerStackPath shortController
-   put rig_GetLocalControllerFolder() into controllerFolder
+function _QuickUploadedTest stackName, serverShortStackFiles
+   -- hacky but effective test
+   replace ".livecodescript" with empty in serverShortStackFiles -- do this first
+   replace ".livecode" with empty in serverShortStackFiles
    --
-   set the itemdelimiter to slash
-   put item 1 to -2 of controllerFolder & "/stacks/" into stackFolder
-   set the itemdelimiter to "."
-   put stackFolder & shortController into scriptStackFile
-   put "livecodescript" into item -1 of scriptStackFile
-   --
-   return scriptStackFile
-end rig_LocalControllerStackPath
-
-function rig_LocalControllerScriptPath shortController
-   put rig_GetLocalControllerFolder() into controllerFolder
-   put controllerFolder & shortController into controllerScriptPath
-   return controllerScriptPath
-end rig_LocalControllerScriptPath
-
-function rig_GetLocalControllerFolder
-   put pref_FetchValue ("rigControllerFolder") into controllerFolder
-   text_AddTrailing controllerFolder, slash
-   return controllerFolder
-end rig_GetLocalControllerFolder
-
-command rig_StoreControllerFolder controllerFolder
-   text_AddTrailing controllerFolder, slash
-   pref_SaveValue "rigControllerFolder", controllerFolder
-   put the result into dataArray
-   return dataArray
-end rig_StoreControllerFolder
+   put stackName is among the lines of serverShortStackFiles into isThere
+   return isThere
+end _QuickUploadedTest
 
 
 --> Rig

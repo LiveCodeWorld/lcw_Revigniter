@@ -27,44 +27,14 @@ end menu_RevigniterHelp
 on _
 end _
 
-on menu_CreateNewController
-   local pControllerShortFile, pControllerFolder
-   
-   rig_SetLocalControllerFolder pControllerFolder
-   if pControllerShortFile is empty then
-      put lcw_Ask ("Choose a short file for your new controller.", "short.lc") into pControllerShortFile
-   end if
-   
-   put rig_ListControllerFiles() into existingControllers
-   if pControllerShortFile is among the lines of existingControllers then
-      answer warning "Controller already exists!"
-      display_RigController pControllerShortFile
-      return false
-   end if
-   
-   local controllerScript, controllerHandlers, scriptDescription, dependencyLibs
-   
-   put scaffold_GetTemplate ("Rig Controller Handlers") into controllerScriptTemplate
-   put server_GetURL() into serverTLD
-   
-   put rig_ConstructControllerFromScript (controllerScriptTemplate, pControllerShortFile, controllerHandlers, scriptDescription, dependencyLibs) into rigScript
-   
-   put rig_CreateContainerScript (rigScript, pControllerShortFile) into controllerScript
-   rig_CreateLocalControllerStack controllerScript, pControllerShortFile, pControllerFolder
-   put the result into scriptStackFile
+on menu_CreateNewController displayView
+   put lcw_Ask ("Choose a short file for your new controller.", "git.lc") into cName
+   --  
+   transport_Create cName
+   put the result into sPath
    --
-   rig_StoreController pControllerShortFile, rigScript
-   put the result into shellResult
-   
-   if shellResult is empty then
-      lcw_Answer "Created and stored new controller on the server!", displayView
-      display_Transporters
-      put the result into displayView
-      return displayView
-   else
-      beep
-      lcw_ExitAndWarn "Failed to store new controller on the server :("
-   end if
+   display_Transporters displayView
+   edit the script of stack sPath
 end menu_CreateNewController
 
 on _

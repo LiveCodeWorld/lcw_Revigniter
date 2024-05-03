@@ -43,7 +43,7 @@ function scrape_ConstructFedwikiPageArray someURL, pAddFaviconLink, pAddCitation
    
    -- create page and image array
    fedwiki_AddExternalLink pageDescription, someURL
-   put pageArray_ConstructImage (imageURL, pageTitle, pageDescription, someURL, pageTitle) into pageArray
+   put wikiPage_Image (imageURL, pageTitle, pageDescription, someURL, pageTitle) into pageArray
    --
    if pAddFaviconLink is true then
       put html_ConstructFaviconLink (headerSection, someURL) into htmlLine
