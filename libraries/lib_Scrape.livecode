@@ -64,7 +64,7 @@ function scrape_ConstructFedwikiPageArray someURL, pAddFaviconLink, pAddCitation
    
    -- add # Links section
    if pAddMarkDownLinks is not false then
-      put fedwiki_ConstructMarkdownLine (pageTitle, someURL) into someMarkdown
+      put markdown_ExternalWikiBullets (pageTitle, someURL) into someMarkdown
       pageArray_AddMarkdown pageArray, "# Links"
       pageArray_AddMarkdown pageArray, someMarkdown
    end if
