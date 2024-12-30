@@ -276,19 +276,19 @@ end rig_AssetImageFolder
 -
 command lcw_DoRemoteShell remoteShell
    -- ssh fortyfoxes@rest.livecode.world
-   ssh_DoRemoteShell "fortyfoxes", "rest.livecode.world", remoteShell
+   ssh_DoRemoteShell "rest.livecode.world", remoteShell, "fortyfoxes"
    put the result into shellResult
    return shellResult
 end lcw_DoRemoteShell
 
 function lcw_FetchKnownHosts
    put "/home/fortyfoxes/.ssh/known_hosts" into somePath
-   put ssh_FetchFile ("fortyfoxes", "rest.livecode.world", somePath) into knownHosts
+   put ssh_FetchFile ("rest.livecode.world", somePath, "fortyfoxes") into knownHosts
    return knownHosts
 end lcw_FetchKnownHosts
 
 function lcw_FetchFile somePath
-   put ssh_FetchFile ("fortyfoxes", "rest.livecode.world", somePath) into someData
+   put ssh_FetchFile ("rest.livecode.world", somePath, "fortyfoxes") into someData
    return someData
 end lcw_FetchFile
 
