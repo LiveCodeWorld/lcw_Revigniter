@@ -11,8 +11,36 @@ This library is for creating and manipulating Transporter wiki pages.
 */
 
 
+--> Variables
+-
+constant PlatformRestDomain = "rest.livecode.wiki" -- "rest.livecode.world"
+
+
 --> Working on
 -
+function platform_WikiDomain pSubDomain
+   -- "livecode.world"
+   constant PlatformWikiDomain = "livecode.wiki"
+   if pSubDomain is empty then
+      return PlatformWikiDomain
+   else
+      text_AddTrailing pSubDomain, "."
+      return pSubDomain & PlatformWikiDomain
+   end if
+end platform_WikiDomain
+
+function platform_RestUrl restBit
+   put "http://" & PlatformRestDomain into restURL
+   if restBit is not empty then
+      put slash & restBit after restURL
+   end if
+   return restURL
+end platform_RestUrl
+
+function platform_RestDomain
+   return PlatformRestDomain
+end platform_RestDomain
+
 function transport_ConstructHiddenArray wikiDomain, pageSlug, pPageTitle
    if pPageTitle is empty then
       put fedwiki_ConstructTitle(pageSlug) into pPageTitle
@@ -92,7 +120,7 @@ end transport_LibraryStacks
 --> Roster | PageArray
 -
 function transport_FetchEmptyRosterPageArray rosterName, pTemplateWikiDomain
-   if pTemplateWikiDomain is empty then put "rest.livecode.world" into pTemplateWikiDomain
+   if pTemplateWikiDomain is empty then put platform_RestDomain() into pTemplateWikiDomain
    --
    put fedwiki_ConstructSlug (rosterName) into rosterTemplateSlug
    put pageArray_Fetch (pTemplateWikiDomain, rosterTemplateSlug) into pageArray
@@ -106,7 +134,7 @@ function transport_FetchRosterPageArray rosterName, pWikiDomainToAdd, pTemplateW
    if transport_CheckRosterAuthor (pWikiDomainToAdd) is false then
       return empty
    end if
-   if pTemplateWikiDomain is empty then put "rest.livecode.world" into pTemplateWikiDomain
+   if pTemplateWikiDomain is empty then put platform_RestDomain() into pTemplateWikiDomain
    --
    put fedwiki_ConstructSlug (rosterName) into rosterTemplateSlug
    put pageArray_Fetch (pTemplateWikiDomain, rosterTemplateSlug) into pageArray
@@ -252,9 +280,6 @@ command transport_WriteFile shortFile, someText
 end transport_WriteFile
 
 function transport_GetJsonPath shortFile
-   -- DOCUMENT_ROOT /var/www/rest.livecode.world
-   -- HTTP_HOST rest.livecode.world
-   
    put server_GetDocumentRoot() into jsonPath
    put slash & shortFile after jsonPath
    return jsonPath
@@ -483,24 +508,3 @@ command transport_UpdatePageGraph @pageArray, hKey
       put dotText into pageArray ["story"][itemNum]["text"]
    end if
 end transport_UpdatePageGraph
-
-
---> Private
--
-private command _TransportInfo hKey, @wikiDomain, @pageTitle, @pageSlug, @hObject
-   put "transport.livecode.world" into wikiDomain
-   --
-   hkey_Deconstruct hKey, hName, hType, hObject, hNum
-   put the stack_Name of hObject into stackName
-   --
-   if hName = "index" then
-      put help_ConstructTransportTitle (stackName) into pageTitle
-   else
-      set the itemdelimiter to "."
-      put hName into pageTitle
-      put item 1 of stackName into subdomain
-      put tolower (subdomain) & "." before wikiDomain
-   end if
-   put fedwiki_ConstructSlug (pageTitle) into pageSlug
-   return hName
-end _TransportInfo

@@ -22,7 +22,7 @@ function federation_ModelUrl modelName
 end federation_ModelUrl
 
 function federation_ModelUrlFromShortFile shortModelFile
-   put "http://rest.livecode.world/model/" & shortModelFile into modelURL
+   put "http://" & platform_RestDomain() & "/model/" & shortModelFile into modelURL
    return modelURL
 end federation_ModelUrlFromShortFile
 
@@ -108,7 +108,8 @@ command federation_RestPostModel modelData, modelName
    put modelName into postData ["modelName"]
    put pWord into postData ["secret"]
    --
-   put jsonrpc_PostArray (postData, "http://rest.livecode.world/atopia/writeModel") into rPageArray
+   put "http://" & platform_RestDomain() & "/atopia/writeModel" into postURL
+   put jsonrpc_PostArray (postData, postURL) into rPageArray
    --
    return rPageArray
 end federation_RestPostModel
@@ -239,7 +240,7 @@ private function _DocumentRoot
       -- put server_GetDocumentRoot() & slash into modelFolder
       put $_SERVER ["DOCUMENT_ROOT"] & slash into modelFolder
    else
-      put "/var/www/rest.livecode.world/" into modelFolder
+      put "/var/www/" & platform_RestDomain() & "/" into modelFolder
    end if
    return modelFolder
 end _DocumentRoot
@@ -248,7 +249,8 @@ private command _DeleteFile sFile
    if the environment is "server" then
       delete file sFile
    else
-      ssh_DeleteFile "fortyfoxes", "rest.livecode.world", sFile
+      put platform_RestDomain() into restDomain
+      ssh_DeleteFile "fortyfoxes", restDomain, sFile
    end if
    return the result
 end _DeleteFile

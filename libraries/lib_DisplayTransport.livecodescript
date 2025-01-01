@@ -83,8 +83,9 @@ end mDoubleUp_ObjectDeps
 -
 command display_Transporters pDisplayArray
    put transport_List (pDisplayArray) into sData
-   --   
-   display_Tools sData, "rest.livecode.world", "Revigniter | Display | Controller", "Transporters" --, "lcw_Revigniter"
+   --  
+   put platform_WikiDomain ("rest") into restDomain
+   display_Tools sData, restDomain, "Revigniter | Display | Controller", "Transporters" --, "lcw_Revigniter"
    put the result into displayView
    --
    return displayView
@@ -98,16 +99,16 @@ on mDoubleUp_RevigniterDisplayController dView shortFile
 end mDoubleUp_RevigniterDisplayController
 
 command display_RigControllerArray
-   put "rest.livecode.world" into serverURL
+   put platform_WikiDomain ("rest") into restDomain
    put "revIgniter Controller Array" into stackLabel
    --
    put rig_FetchControllerPathArray() into controllerPathArray
    --
-   put display_FindView (stackLabel, serverURL) into displayView
+   put display_FindView (stackLabel, restDomain) into displayView
    if exists (displayView) then
       set the displayed_Data of displayView to controllerPathArray
    else
-      display_Array controllerPathArray, serverURL, stackLabel
+      display_Array controllerPathArray, restDomain, stackLabel
       put the result into displayView
       display_SetInteractions displayView, "Revigniter | Display | Controller", ""
    end if
@@ -291,7 +292,8 @@ end display_TransportDeps
 --> Display | Transport | Handlers
 -
 command display_ControllerHandlers controllerScript, pControllerShortFile, serverTLD
-   server_SetURL "rest.livecode.world"
+   put platform_WikiDomain ("rest") into restDomain
+   server_SetURL restDomain
    --
    put rig_ListControllerFiles() into shortStackFiles
    display_Lines shortStackFiles, "Rig Controllers", "mDoubleUp_CheckRigControllers"
