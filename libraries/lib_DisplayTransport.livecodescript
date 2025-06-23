@@ -84,7 +84,7 @@ end mDoubleUp_ObjectDeps
 command display_Transporters pDisplayArray
    put transport_List (pDisplayArray) into sData
    --  
-   put platform_WikiDomain ("rest") into restDomain
+   put platform_LivecodeDomain ("rest") into restDomain
    display_Tools sData, restDomain, "Revigniter | Display | Controller", "Transporters" --, "lcw_Revigniter"
    put the result into displayView
    --
@@ -99,7 +99,7 @@ on mDoubleUp_RevigniterDisplayController dView shortFile
 end mDoubleUp_RevigniterDisplayController
 
 command display_RigControllerArray
-   put platform_WikiDomain ("rest") into restDomain
+   put platform_LivecodeDomain ("rest") into restDomain
    put "revIgniter Controller Array" into stackLabel
    --
    put rig_FetchControllerPathArray() into controllerPathArray
@@ -292,7 +292,7 @@ end display_TransportDeps
 --> Display | Transport | Handlers
 -
 command display_ControllerHandlers controllerScript, pControllerShortFile, serverTLD
-   put platform_WikiDomain ("rest") into restDomain
+   put platform_LivecodeDomain ("rest") into restDomain
    server_SetURL restDomain
    --
    put rig_ListControllerFiles() into shortStackFiles
